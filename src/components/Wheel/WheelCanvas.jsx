@@ -77,7 +77,7 @@ const WheelCanvas = ({ names, mustSpin, prizeNumber, onStopSpinning }) => {
       animationFrameId.current = requestAnimationFrame(animate);
     };
 
-    drawWheel(); // Initial draw
+    animate(); // Initial draw and start loop
 
     // Cleanup
     return () => {
