@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import styled from 'styled-components';
 import WheelCanvas from './WheelCanvas';
 import Controls from './Controls';
@@ -6,16 +6,68 @@ import Confetti from 'react-confetti';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BRAND_COLORS } from '../../utils/colors';
 
-const GameContainer = styled.div`
+const GameContainer = styled(motion.div)`
   display: flex;
   flex-direction: row;
-  align-items: flex-start;
-  justify-content: center;
-  padding: 40px;
-  flex-wrap: wrap;
+  align-items: center; 
+  justify-content: space-between; 
+  padding: 0; 
   width: 100%;
-  max-width: 1200px;
-  margin: 0 auto;
+  height: 100%; 
+  overflow: hidden; 
+  flex-wrap: nowrap; 
+  position: relative;
+  
+  @media (max-width: 900px) {
+    flex-direction: column;
+    justify-content: center;
+    gap: 20px;
+  }
+`;
+
+const FloatingNav = styled.div`
+  position: absolute;
+  top: 30px;
+  left: 30px;
+  z-index: 50;
+  display: flex;
+  gap: 15px;
+`;
+
+const NavButton = styled.button`
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: white;
+  padding: 8px 20px;
+  border-radius: 50px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s;
+  font-weight: 500;
+  backdrop-filter: blur(4px);
+  
+  &:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: translateY(-2px);
+  }
+`;
+
+const StopButton = styled(NavButton)`
+  background: rgba(239, 68, 68, 0.2);
+  border: 1px solid rgba(239, 68, 68, 0.5);
+  color: #fca5a5;
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 0.85rem;
+  letter-spacing: 0.05em;
+
+  &:hover {
+    background: rgba(239, 68, 68, 0.4);
+    box-shadow: 0 0 15px rgba(239, 68, 68, 0.3);
+    color: white;
+  }
 `;
 
 const ModalBackdrop = styled(motion.div)`
@@ -41,7 +93,7 @@ const WinnerModal = styled(motion.div)`
   z-index: 100;
   box-shadow: 0 0 60px rgba(254, 221, 40, 0.15), 0 20px 40px -10px rgba(0,0,0,0.5);
   max-width: 90%;
-  width: 400px;
+  width: 450px;
 `;
 
 const WinnerTitle = styled.h2`
@@ -52,7 +104,7 @@ const WinnerTitle = styled.h2`
   letter-spacing: 0.1em;
 `;
 
-const WinnerName = styled.div`
+const WinnerName = styled(motion.div)`
   font-size: 3.5rem;
   font-weight: 800;
   margin: 20px 0;
@@ -62,16 +114,23 @@ const WinnerName = styled.div`
   filter: drop-shadow(0 4px 6px rgba(0,0,0,0.3));
 `;
 
-const CloseButton = styled.button`
+const ButtonGroup = styled.div`
+  display: flex;
+  gap: 15px;
+  justify-content: center;
+  margin-top: 30px;
+`;
+
+const ActionButton = styled.button`
   background: rgba(255, 255, 255, 0.1);
   border: 1px solid rgba(255, 255, 255, 0.2);
   color: white;
-  padding: 12px 30px;
+  padding: 12px 24px;
   border-radius: 50px;
   font-size: 1rem;
   cursor: pointer;
   transition: all 0.2s;
-  margin-top: 20px;
+  font-weight: 600;
 
   &:hover {
     background: rgba(255, 255, 255, 0.2);
@@ -79,11 +138,26 @@ const CloseButton = styled.button`
   }
 `;
 
-const WheelGame = () => {
-  const [names, setNames] = useState(['Alice', 'Bob', 'Charlie', 'David', 'Eve', 'Frank']);
-  const [mustSpin, setMustSpin] = useState(false);
-  const [prizeNumber, setPrizeNumber] = useState(0);
-  const [winner, setWinner] = useState(null);
+const RemoveButton = styled(ActionButton)`
+  background: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.3);
+  color: #fca5a5;
+
+  &:hover {
+    background: rgba(239, 68, 68, 0.3);
+    color: white;
+  }
+`;
+
+const WheelGame = ({
+  names, setNames,
+  mustSpin, setMustSpin,
+  prizeNumber, setPrizeNumber,
+  winner, setWinner,
+  onBack,
+  spinDuration = 5,
+  setSpinDuration
+}) => {
 
   const handleSpinClick = () => {
     if (!mustSpin && names.length > 1) {
@@ -99,23 +173,85 @@ const WheelGame = () => {
     setWinner(names[prizeNumber]);
   };
 
+  const handleRemoveWinner = () => {
+    if (winner) {
+      const newNames = names.filter(n => n !== winner);
+      setNames(newNames);
+      setWinner(null);
+    }
+  };
+
   return (
-    <div style={{ width: '100%', minHeight: '80vh', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-      {winner && <Confetti recycle={false} numberOfPieces={500} />}
+    <div style={{ width: '100%', height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', overflow: 'hidden', position: 'relative' }}>
+
+      <FloatingNav>
+        {mustSpin ? (
+          <StopButton onClick={() => setMustSpin(false)}>
+            ■ STOP
+          </StopButton>
+        ) : (
+          <NavButton onClick={onBack}>
+            ← Back
+          </NavButton>
+        )}
+      </FloatingNav>
+
+      {winner && <Confetti recycle={false} numberOfPieces={800} gravity={0.2} colors={[BRAND_COLORS.yellow, BRAND_COLORS.orange, BRAND_COLORS.red, '#fff']} />}
 
       <GameContainer>
-        <WheelCanvas
-          names={names}
-          mustSpin={mustSpin}
-          prizeNumber={prizeNumber}
-          onStopSpinning={handleStopSpinning}
-        />
-        <Controls
-          names={names}
-          setNames={setNames}
-          onSpin={handleSpinClick}
-          isSpinning={mustSpin}
-        />
+        <motion.div
+          style={{
+            flex: 1,
+            height: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            minWidth: '0',
+            position: 'relative',
+            paddingLeft: '20px'
+          }}
+          animate={{ flex: 1 }}
+        >
+          <WheelCanvas
+            names={names}
+            mustSpin={mustSpin}
+            prizeNumber={prizeNumber}
+            onStopSpinning={handleStopSpinning}
+            onSpin={handleSpinClick}
+            spinDuration={spinDuration}
+          />
+        </motion.div>
+
+        <AnimatePresence>
+          {!mustSpin && (
+            <motion.div
+              initial={{ width: 340, opacity: 1 }}
+              animate={{ width: 340, opacity: 1 }}
+              exit={{ width: 0, opacity: 0, paddingRight: 0 }}
+              transition={{ duration: 0.4 }}
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                zIndex: 10,
+                paddingRight: '30px',
+                overflow: 'hidden',
+                whiteSpace: 'nowrap',
+                height: '100%',
+                justifyContent: 'center'
+              }}
+            >
+              <Controls
+                names={names}
+                setNames={setNames}
+                onSpin={handleSpinClick}
+                isSpinning={mustSpin}
+                spinDuration={spinDuration}
+                setSpinDuration={setSpinDuration}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </GameContainer>
 
       <AnimatePresence>
@@ -127,15 +263,45 @@ const WheelGame = () => {
             onClick={() => setWinner(null)}
           >
             <WinnerModal
-              initial={{ scale: 0.5, opacity: 0, y: 50 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
+              initial={{ scale: 0.5, opacity: 0, y: 100, rotateX: -20 }}
+              animate={{
+                scale: [0.5, 1.1, 1],
+                opacity: 1,
+                y: 0,
+                rotateX: 0,
+                boxShadow: [
+                  `0 0 0 0px ${BRAND_COLORS.yellow}`,
+                  `0 0 50px 20px ${BRAND_COLORS.yellow}`,
+                  `0 0 30px 10px rgba(0,0,0,0.5)`
+                ]
+              }}
               exit={{ scale: 0.9, opacity: 0 }}
-              transition={{ type: "spring", duration: 0.5, bounce: 0.4 }}
+              transition={{ duration: 0.6, type: "spring", bounce: 0.5 }}
               onClick={(e) => e.stopPropagation()}
             >
-              <WinnerTitle>And the winner is...</WinnerTitle>
-              <WinnerName>{winner}</WinnerName>
-              <CloseButton onClick={() => setWinner(null)}>Spin Again</CloseButton>
+              <WinnerTitle>We have a winner!</WinnerTitle>
+              <WinnerName
+                animate={{
+                  scale: [1, 1.2, 1],
+                  textShadow: [
+                    "0 0 10px rgba(255,255,255,0.5)",
+                    "0 0 30px rgba(255,255,255,1)",
+                    "0 0 10px rgba(255,255,255,0.5)"
+                  ]
+                }}
+                transition={{ repeat: Infinity, duration: 1.5 }}
+              >
+                {winner}
+              </WinnerName>
+
+              <ButtonGroup>
+                <ActionButton onClick={() => setWinner(null)}>
+                  ← Back
+                </ActionButton>
+                <RemoveButton onClick={handleRemoveWinner}>
+                  Remove Winner
+                </RemoveButton>
+              </ButtonGroup>
             </WinnerModal>
           </ModalBackdrop>
         )}

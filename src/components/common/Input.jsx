@@ -9,7 +9,7 @@ export const Input = styled.input`
   color: white;
   font-size: 1rem;
   transition: border-color 0.2s;
-  box-sizing: border-box; /* Important for padding */
+  box-sizing: border-box;
 
   &:focus {
     outline: none;

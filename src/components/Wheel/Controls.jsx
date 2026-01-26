@@ -99,7 +99,37 @@ const SpinButton = styled(Button)`
   }
 `;
 
-const Controls = ({ names, setNames, onSpin, isSpinning }) => {
+const DurationGroup = styled.div`
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+`;
+
+const DurationButton = styled.button`
+  flex: 1;
+  background: ${props => props.active ? 'rgba(255, 255, 255, 0.2)' : 'rgba(255, 255, 255, 0.05)'};
+  border: 1px solid ${props => props.active ? 'rgba(255, 255, 255, 0.4)' : 'rgba(255, 255, 255, 0.1)'};
+  color: white;
+  padding: 6px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  transition: all 0.2s;
+  
+  &:hover {
+    background: rgba(255, 255, 255, 0.25);
+  }
+`;
+
+const Label = styled.div`
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.5);
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+`;
+
+const Controls = ({ names, setNames, onSpin, isSpinning, spinDuration, setSpinDuration }) => {
   const [newName, setNewName] = useState('');
 
   const handleAdd = () => {
@@ -159,6 +189,23 @@ const Controls = ({ names, setNames, onSpin, isSpinning }) => {
           ))}
         </AnimatePresence>
       </NameList>
+
+      {setSpinDuration && (
+        <div>
+          <Label>Spin Duration</Label>
+          <DurationGroup>
+            {[3, 5, 10].map(d => (
+              <DurationButton
+                key={d}
+                active={spinDuration === d}
+                onClick={() => setSpinDuration(d)}
+              >
+                {d}s
+              </DurationButton>
+            ))}
+          </DurationGroup>
+        </div>
+      )}
 
       <SpinButton
         as={motion.button}

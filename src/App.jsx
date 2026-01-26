@@ -7,21 +7,37 @@ import ChoozTextLogo from './assets/chooz-text-logo.svg'
 import styled from 'styled-components';
 import { AnimatePresence, motion } from 'framer-motion';
 
+const HeaderContainer = styled.header`
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px 40px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: relative;
+  z-index: 50;
+`;
+
+const HeaderLeft = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 20px;
+`;
+
 const BackButton = styled.button`
-  position: absolute;
-  top: 40px;
-  left: 40px;
   background: rgba(255, 255, 255, 0.1);
   border: 1px solid rgba(255, 255, 255, 0.2);
   color: white;
   padding: 8px 16px;
-  border-radius: 8px;
+  border-radius: 50px;
   cursor: pointer;
-  z-index: 50;
   display: flex;
   align-items: center;
   gap: 8px;
   transition: all 0.2s;
+  font-weight: 500;
+  backdrop-filter: blur(4px);
 
   &:hover {
     background: rgba(255, 255, 255, 0.2);
@@ -30,46 +46,36 @@ const BackButton = styled.button`
 `;
 
 function App() {
-  const [view, setView] = useState('landing'); // 'landing' | 'home' | 'wheel'
+  const [view, setView] = useState('landing');
+  const [names, setNames] = useState(['Alice', 'Bob', 'Charlie', 'David', 'Eve', 'Frank']);
+  const [mustSpin, setMustSpin] = useState(false);
+  const [prizeNumber, setPrizeNumber] = useState(0);
+  const [winner, setWinner] = useState(null);
+  const [spinDuration, setSpinDuration] = useState(5);
 
   const navigate = (newView) => {
     setView(newView);
-  };
-
-  const renderContent = () => {
-    switch (view) {
-      case 'landing':
-        return <LandingPage onStart={() => navigate('home')} />;
-      case 'home':
-        return <HomePage onNavigate={navigate} />;
-      case 'wheel':
-        return <WheelGame />;
-      default:
-        return <LandingPage onStart={() => navigate('home')} />;
-    }
+    setMustSpin(false);
+    setWinner(null);
   };
 
   return (
     <div className="app-container">
-      {/* Header is persistent except on Landing potentially, or we can animate it. 
-          For now, let's keep the logo header on Home and Game, but maybe simpler on Landing?
-          Actually Landing has its own logo. Let's show header only on Home and Game.
-      */}
-
-      {view !== 'landing' && (
-        <header style={{ marginBottom: '20px', marginTop: '40px', position: 'relative', width: '100%', display: 'flex', justifyContent: 'center' }}>
-          {view === 'wheel' && (
+      {view !== 'landing' && view !== 'wheel' && (
+        <HeaderContainer>
+          <HeaderLeft>
             <BackButton onClick={() => navigate('home')}>
               ← Back
             </BackButton>
-          )}
-          <img
-            src={ChoozTextLogo}
-            alt="Chooz"
-            style={{ height: '60px', cursor: 'pointer' }}
-            onClick={() => navigate('landing')}
-          />
-        </header>
+            <img
+              src={ChoozTextLogo}
+              alt="Chooz"
+              style={{ height: '40px', cursor: 'pointer' }}
+              onClick={() => navigate('landing')}
+            />
+          </HeaderLeft>
+          <div />
+        </HeaderContainer>
       )}
 
       <AnimatePresence mode="wait">
@@ -79,9 +85,25 @@ function App() {
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -20 }}
           transition={{ duration: 0.3 }}
-          style={{ width: '100%' }}
+          style={{ width: '100%', flex: 1, display: 'flex', flexDirection: 'column' }}
         >
-          {renderContent()}
+          {view === 'landing' && <LandingPage onStart={() => navigate('home')} />}
+          {view === 'home' && <HomePage onNavigate={navigate} />}
+          {view === 'wheel' && (
+            <WheelGame
+              names={names}
+              setNames={setNames}
+              mustSpin={mustSpin}
+              setMustSpin={setMustSpin}
+              prizeNumber={prizeNumber}
+              setPrizeNumber={setPrizeNumber}
+              winner={winner}
+              setWinner={setWinner}
+              onBack={() => navigate('home')}
+              spinDuration={spinDuration}
+              setSpinDuration={setSpinDuration}
+            />
+          )}
         </motion.div>
       </AnimatePresence>
     </div>

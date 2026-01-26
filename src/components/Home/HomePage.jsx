@@ -2,6 +2,7 @@ import React from 'react';
 import styled from 'styled-components';
 import { motion } from 'framer-motion';
 import { BRAND_COLORS } from '../../utils/colors';
+import WheelLogo from '../../assets/wheel-of-names-logo.png';
 
 const HomeContainer = styled(motion.div)`
   padding: 40px;
@@ -42,7 +43,7 @@ const GameCard = styled(motion.div)`
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  min-height: 200px;
+  min-height: 350px;
   backdrop-filter: blur(10px);
   transition: border-color 0.3s;
 
@@ -82,8 +83,22 @@ const CardDescription = styled.p`
 `;
 
 const CardIcon = styled.div`
-  font-size: 3rem;
+  height: 120px;
   margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  
+  img {
+    max-height: 100%;
+    max-width: 100%;
+    filter: drop-shadow(0 4px 6px rgba(0,0,0,0.3));
+    transition: transform 0.3s;
+  }
+
+  ${GameCard}:hover & img {
+    transform: scale(1.1) rotate(5deg);
+  }
 `;
 
 const HomePage = ({ onNavigate }) => {
@@ -92,21 +107,21 @@ const HomePage = ({ onNavigate }) => {
       id: 'wheel',
       title: 'Wheel of Names',
       description: 'Spin the wheel to make a random choice. Perfect for raffles, decisions, and fun.',
-      icon: '🎡',
+      icon: <img src={WheelLogo} alt="Wheel of Names" />,
       action: () => onNavigate('wheel')
     },
     {
       id: 'coin',
       title: 'Coin Flip',
       description: 'Heads or Tails? Leave it to fate with a simple coin flip.',
-      icon: '🪙',
-      action: () => alert('Coming Soon!') // Placeholder for now
+      icon: <span style={{ fontSize: '3rem' }}>🪙</span>,
+      action: () => alert('Coming Soon!')
     },
     {
       id: 'dice',
       title: 'Dice Roll',
       description: 'Roll the dice for board games or random numbers.',
-      icon: '🎲',
+      icon: <span style={{ fontSize: '3rem' }}>🎲</span>,
       action: () => alert('Coming Soon!')
     }
   ];
