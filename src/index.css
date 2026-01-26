@@ -3,6 +3,14 @@
   --text-color: #f8fafc;
   --primary: #8b5cf6;
   --secondary: #ec4899;
+  
+  /* Brand Palette derived from Logos */
+  --brand-navy: #0F2F4B;
+  --brand-yellow: #FEDD28;
+  --brand-orange: #FE7E00;
+  --brand-red: #A83712;
+  --brand-purple: #242E5B; /* Inferred/Approx from dark shades */
+  --brand-light: #F7F6F1;
 }
 
 body {
@@ -20,4 +28,20 @@ body {
   align-items: center;
   justify-content: center;
   min-height: 100vh;
+}
+
+/* Updated Typography to match premium feel */
+h1 {
+  font-weight: 800;
+  letter-spacing: -0.05em;
+  font-size: 3rem;
+  background: linear-gradient(135deg, var(--brand-yellow) 0%, var(--brand-orange) 50%, var(--brand-red) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 0.5rem;
+}
+
+p {
+  color: #94a3b8;
+  font-size: 1.125rem;
 }
