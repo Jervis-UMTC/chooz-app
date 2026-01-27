@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { GAME_COLORS, BRAND_COLORS } from '../../utils/colors';
+import { playTick, playWin, initAudio } from '../../utils/sounds';
 
 const truncateText = (ctx, text, maxWidth) => {
   let width = ctx.measureText(text).width;
@@ -28,6 +29,7 @@ const WheelCanvas = ({ names, mustSpin, prizeNumber, onStopSpinning, onSpin, spi
   const speedRef = useRef(0);
   const lastTimeRef = useRef(0);
   const geometryRef = useRef({ centerX: 0, centerY: 0, hubRadius: 0, dpr: 1 });
+  const lastSegmentRef = useRef(-1);
 
   const mustSpinRef = useRef(mustSpin);
   useEffect(() => {
@@ -162,6 +164,13 @@ const WheelCanvas = ({ names, mustSpin, prizeNumber, onStopSpinning, onSpin, spi
       const activeColor = GAME_COLORS[activeIndex % GAME_COLORS.length];
       const activeName = effectiveNames[activeIndex];
 
+      // Play tick sound when crossing to new segment
+      if (isSpinningRef.current && lastSegmentRef.current !== -1 && lastSegmentRef.current !== activeIndex) {
+        const progress = speedRef.current > 0 ? Math.min(1, speedRef.current / 0.5) : 0.5;
+        playTick(0.8 + progress * 0.4);
+      }
+      lastSegmentRef.current = activeIndex;
+
       ctx.save();
       ctx.translate(centerX, centerY);
       ctx.beginPath();
@@ -244,6 +253,7 @@ const WheelCanvas = ({ names, mustSpin, prizeNumber, onStopSpinning, onSpin, spi
     const dist = Math.sqrt(dx * dx + dy * dy);
 
     if (dist <= geometryRef.current.hubRadius) {
+      initAudio();
       onSpin();
     }
   };
@@ -301,6 +311,7 @@ const WheelCanvas = ({ names, mustSpin, prizeNumber, onStopSpinning, onSpin, spi
           rotationRef.current = spinParams.target;
           isSpinningRef.current = false;
           hasFinishedSpinningRef.current = true;
+          playWin();
           onStopSpinning();
         }
       };

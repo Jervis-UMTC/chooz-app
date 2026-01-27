@@ -2,7 +2,7 @@ import React from 'react';
 import styled from 'styled-components';
 import WheelCanvas from './WheelCanvas';
 import Controls from './Controls';
-import Confetti from 'react-confetti';
+import Celebration from './Celebration';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BRAND_COLORS } from '../../utils/colors';
 
@@ -43,10 +43,12 @@ const NavButton = styled.button`
   cursor: pointer;
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
   transition: all 0.2s;
   font-weight: 500;
   backdrop-filter: blur(4px);
+  min-width: 90px;
   
   &:hover {
     background: rgba(255, 255, 255, 0.2);
@@ -62,6 +64,8 @@ const StopButton = styled(NavButton)`
   text-transform: uppercase;
   font-size: 0.85rem;
   letter-spacing: 0.05em;
+  min-width: 90px;
+  justify-content: center;
 
   &:hover {
     background: rgba(239, 68, 68, 0.4);
@@ -187,7 +191,8 @@ const WheelGame = ({
       <FloatingNav>
         {mustSpin ? (
           <StopButton onClick={() => setMustSpin(false)}>
-            ■ STOP
+            <span style={{ width: '0.85em', height: '0.85em', background: 'currentColor', display: 'inline-block', borderRadius: '2px' }} />
+            STOP
           </StopButton>
         ) : (
           <NavButton onClick={onBack}>
@@ -196,7 +201,7 @@ const WheelGame = ({
         )}
       </FloatingNav>
 
-      {winner && <Confetti recycle={false} numberOfPieces={800} gravity={0.2} colors={[BRAND_COLORS.yellow, BRAND_COLORS.orange, BRAND_COLORS.red, '#fff']} />}
+      {winner && <Celebration particleCount={40} />}
 
       <GameContainer>
         <motion.div
@@ -263,33 +268,21 @@ const WheelGame = ({
             onClick={() => setWinner(null)}
           >
             <WinnerModal
-              initial={{ scale: 0.5, opacity: 0, y: 100, rotateX: -20 }}
+              initial={{ scale: 0.8, opacity: 0, y: 50 }}
               animate={{
-                scale: [0.5, 1.1, 1],
+                scale: 1,
                 opacity: 1,
-                y: 0,
-                rotateX: 0,
-                boxShadow: [
-                  `0 0 0 0px ${BRAND_COLORS.yellow}`,
-                  `0 0 50px 20px ${BRAND_COLORS.yellow}`,
-                  `0 0 30px 10px rgba(0,0,0,0.5)`
-                ]
+                y: 0
               }}
               exit={{ scale: 0.9, opacity: 0 }}
-              transition={{ duration: 0.6, type: "spring", bounce: 0.5 }}
+              transition={{ duration: 0.4, ease: "easeOut" }}
               onClick={(e) => e.stopPropagation()}
             >
               <WinnerTitle>We have a winner!</WinnerTitle>
               <WinnerName
-                animate={{
-                  scale: [1, 1.2, 1],
-                  textShadow: [
-                    "0 0 10px rgba(255,255,255,0.5)",
-                    "0 0 30px rgba(255,255,255,1)",
-                    "0 0 10px rgba(255,255,255,0.5)"
-                  ]
-                }}
-                transition={{ repeat: Infinity, duration: 1.5 }}
+                initial={{ scale: 0.9 }}
+                animate={{ scale: 1 }}
+                transition={{ duration: 0.3, delay: 0.2 }}
               >
                 {winner}
               </WinnerName>

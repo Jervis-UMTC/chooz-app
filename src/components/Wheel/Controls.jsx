@@ -4,6 +4,7 @@ import { Button } from '../common/Button';
 import { Input } from '../common/Input';
 import { BRAND_COLORS } from '../../utils/colors';
 import { motion, AnimatePresence } from 'framer-motion';
+import { initAudio } from '../../utils/sounds';
 
 const ControlsContainer = styled(motion.div)`
   background-color: rgba(15, 23, 42, 0.6);
@@ -211,7 +212,7 @@ const Controls = ({ names, setNames, onSpin, isSpinning, spinDuration, setSpinDu
         as={motion.button}
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
-        onClick={onSpin}
+        onClick={() => { initAudio(); onSpin(); }}
         disabled={isSpinning || names.length < 2}
       >
         {isSpinning ? 'Spinning...' : 'SPIN'}

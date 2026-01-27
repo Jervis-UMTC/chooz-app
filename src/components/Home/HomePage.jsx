@@ -4,101 +4,71 @@ import { motion } from 'framer-motion';
 import { BRAND_COLORS } from '../../utils/colors';
 import WheelLogo from '../../assets/wheel-of-names-logo.png';
 
-const HomeContainer = styled(motion.div)`
-  padding: 40px;
+const HomeContainer = styled.div`
+  padding: 60px 20px;
   width: 100%;
-  max-width: 1200px;
+  max-width: 900px;
   margin: 0 auto;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
 `;
 
 const Title = styled.h2`
-  font-size: 2.5rem;
-  font-weight: 800;
+  font-size: 2rem;
+  font-weight: 700;
+  color: white;
   margin-bottom: 40px;
-  background: linear-gradient(135deg, ${BRAND_COLORS.yellow} 0%, ${BRAND_COLORS.orange} 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  width: 100%;
   text-align: center;
 `;
 
-const Grid = styled.div`
+const CardGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 30px;
-  width: 100%;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 24px;
 `;
 
-const GameCard = styled(motion.div)`
-  background: rgba(30, 41, 59, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 20px;
-  padding: 30px;
+const Card = styled(motion.div)`
+  background: #1e293b;
+  border-radius: 16px;
+  padding: 24px;
   cursor: pointer;
-  position: relative;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  min-height: 350px;
-  backdrop-filter: blur(10px);
-  transition: border-color 0.3s;
-
+  border: 1px solid #334155;
+  
   &:hover {
     border-color: ${BRAND_COLORS.orange};
   }
-
-  &::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 4px;
-    height: 100%;
-    background: linear-gradient(to bottom, ${BRAND_COLORS.yellow}, ${BRAND_COLORS.red});
-    opacity: 0.5;
-    transition: width 0.3s;
-  }
-
-  &:hover::before {
-    width: 10px;
-    opacity: 1;
-  }
-`;
-
-const CardTitle = styled.h3`
-  font-size: 1.5rem;
-  color: white;
-  margin: 0 0 10px 0;
-`;
-
-const CardDescription = styled.p`
-  color: #94a3b8;
-  font-size: 1rem;
-  line-height: 1.5;
-  margin-bottom: 20px;
 `;
 
 const CardIcon = styled.div`
-  height: 120px;
-  margin-bottom: 20px;
+  width: 80px;
+  height: 80px;
+  margin-bottom: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
   
   img {
-    max-height: 100%;
     max-width: 100%;
-    filter: drop-shadow(0 4px 6px rgba(0,0,0,0.3));
-    transition: transform 0.3s;
+    max-height: 100%;
   }
+`;
 
-  ${GameCard}:hover & img {
-    transform: scale(1.1) rotate(5deg);
-  }
+const CardTitle = styled.h3`
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: white;
+  margin: 0 0 8px 0;
+`;
+
+const CardDesc = styled.p`
+  color: #94a3b8;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  margin: 0 0 16px 0;
+`;
+
+const PlayButton = styled.span`
+  color: ${BRAND_COLORS.orange};
+  font-weight: 600;
+  font-size: 0.9rem;
 `;
 
 const HomePage = ({ onNavigate }) => {
@@ -106,68 +76,44 @@ const HomePage = ({ onNavigate }) => {
     {
       id: 'wheel',
       title: 'Wheel of Names',
-      description: 'Spin the wheel to make a random choice. Perfect for raffles, decisions, and fun.',
-      icon: <img src={WheelLogo} alt="Wheel of Names" />,
-      action: () => onNavigate('wheel')
+      desc: 'Spin the wheel to pick a random winner.',
+      icon: <img src={WheelLogo} alt="Wheel" />,
+      onClick: () => onNavigate('wheel')
     },
     {
       id: 'coin',
       title: 'Coin Flip',
-      description: 'Heads or Tails? Leave it to fate with a simple coin flip.',
-      icon: <span style={{ fontSize: '3rem' }}>🪙</span>,
-      action: () => alert('Coming Soon!')
+      desc: 'Heads or tails? Let fate decide.',
+      icon: <span style={{ fontSize: '2.5rem' }}>🪙</span>,
+      onClick: () => alert('Coming Soon!')
     },
     {
       id: 'dice',
       title: 'Dice Roll',
-      description: 'Roll the dice for board games or random numbers.',
-      icon: <span style={{ fontSize: '3rem' }}>🎲</span>,
-      action: () => alert('Coming Soon!')
+      desc: 'Roll dice for games or decisions.',
+      icon: <span style={{ fontSize: '2.5rem' }}>🎲</span>,
+      onClick: () => alert('Coming Soon!')
     }
   ];
 
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.1
-      }
-    }
-  };
-
-  const itemVariants = {
-    hidden: { y: 20, opacity: 0 },
-    visible: { y: 0, opacity: 1 }
-  };
-
   return (
-    <HomeContainer
-      variants={containerVariants}
-      initial="hidden"
-      animate="visible"
-    >
-      <Title>Choose Your Game</Title>
-      <Grid>
+    <HomeContainer>
+      <Title>Pick a Game</Title>
+      <CardGrid>
         {games.map((game) => (
-          <GameCard
+          <Card
             key={game.id}
-            variants={itemVariants}
-            whileHover={{ y: -5, boxShadow: '0 10px 30px -10px rgba(0,0,0,0.5)' }}
+            whileHover={{ y: -4 }}
             whileTap={{ scale: 0.98 }}
-            onClick={game.action}
+            onClick={game.onClick}
           >
-            <div>
-              <CardIcon>{game.icon}</CardIcon>
-              <CardTitle>{game.title}</CardTitle>
-              <CardDescription>{game.description}</CardDescription>
-            </div>
-            <div style={{ alignSelf: 'flex-end', color: BRAND_COLORS.orange, fontWeight: 'bold' }}>
-              PLAY NOW →
-            </div>
-          </GameCard>
+            <CardIcon>{game.icon}</CardIcon>
+            <CardTitle>{game.title}</CardTitle>
+            <CardDesc>{game.desc}</CardDesc>
+            <PlayButton>Play →</PlayButton>
+          </Card>
         ))}
-      </Grid>
+      </CardGrid>
     </HomeContainer>
   );
 };
