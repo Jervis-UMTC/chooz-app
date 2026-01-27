@@ -5,6 +5,7 @@ import Controls from './Controls';
 import Celebration from './Celebration';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BRAND_COLORS } from '../../utils/colors';
+import { ArrowLeftIcon, StopIcon, TrashIcon } from '../common/Icons';
 
 const GameContainer = styled(motion.div)`
   display: flex;
@@ -160,7 +161,8 @@ const WheelGame = ({
   winner, setWinner,
   onBack,
   spinDuration = 5,
-  setSpinDuration
+  setSpinDuration,
+  history = []
 }) => {
 
   const handleSpinClick = () => {
@@ -191,12 +193,12 @@ const WheelGame = ({
       <FloatingNav>
         {mustSpin ? (
           <StopButton onClick={() => setMustSpin(false)}>
-            <span style={{ width: '0.85em', height: '0.85em', background: 'currentColor', display: 'inline-block', borderRadius: '2px' }} />
+            <StopIcon size={12} />
             STOP
           </StopButton>
         ) : (
           <NavButton onClick={onBack}>
-            ← Back
+            <ArrowLeftIcon size={16} /> Back
           </NavButton>
         )}
       </FloatingNav>
@@ -253,6 +255,7 @@ const WheelGame = ({
                 isSpinning={mustSpin}
                 spinDuration={spinDuration}
                 setSpinDuration={setSpinDuration}
+                history={history}
               />
             </motion.div>
           )}
@@ -289,10 +292,10 @@ const WheelGame = ({
 
               <ButtonGroup>
                 <ActionButton onClick={() => setWinner(null)}>
-                  ← Back
+                  <ArrowLeftIcon size={14} /> Back
                 </ActionButton>
                 <RemoveButton onClick={handleRemoveWinner}>
-                  Remove Winner
+                  <TrashIcon size={14} /> Remove
                 </RemoveButton>
               </ButtonGroup>
             </WinnerModal>

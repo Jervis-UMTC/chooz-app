@@ -7,6 +7,8 @@ import ChoozTextLogo from './assets/chooz-text-logo.svg'
 import styled from 'styled-components';
 import { AnimatePresence, motion } from 'framer-motion';
 
+import { ArrowLeftIcon } from './components/common/Icons';
+
 const HeaderContainer = styled.header`
   width: 100%;
   max-width: 1200px;
@@ -52,6 +54,14 @@ function App() {
   const [prizeNumber, setPrizeNumber] = useState(0);
   const [winner, setWinner] = useState(null);
   const [spinDuration, setSpinDuration] = useState(5);
+  const [history, setHistory] = useState([]);
+
+  const setWinnerWithHistory = (newWinner) => {
+    setWinner(newWinner);
+    if (newWinner) {
+      setHistory(prev => [newWinner, ...prev].slice(0, 20));
+    }
+  };
 
   const navigate = (newView) => {
     setView(newView);
@@ -65,7 +75,7 @@ function App() {
         <HeaderContainer>
           <HeaderLeft>
             <BackButton onClick={() => navigate('home')}>
-              ← Back
+              <ArrowLeftIcon size={16} /> Back
             </BackButton>
             <img
               src={ChoozTextLogo}
@@ -98,10 +108,11 @@ function App() {
               prizeNumber={prizeNumber}
               setPrizeNumber={setPrizeNumber}
               winner={winner}
-              setWinner={setWinner}
+              setWinner={setWinnerWithHistory}
               onBack={() => navigate('home')}
               spinDuration={spinDuration}
               setSpinDuration={setSpinDuration}
+              history={history}
             />
           )}
         </motion.div>
