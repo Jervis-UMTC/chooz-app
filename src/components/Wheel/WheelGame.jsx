@@ -269,10 +269,8 @@ const WheelGame = ({
     }
   };
 
-  // Spacebar keyboard shortcut to spin
   useEffect(() => {
     const handleKeyDown = (e) => {
-      // Don't trigger if user is typing in an input
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
       if (e.code === 'Space' && !mustSpin && !winner && names.length > 1) {
         e.preventDefault();
@@ -306,7 +304,6 @@ const WheelGame = ({
 
 
 
-  // 100dvh is better for mobile browsers to handle address bars
   return (
     <div style={{ width: '100%', height: '100dvh', display: 'flex', flexDirection: 'column', alignItems: 'center', overflow: 'hidden', position: 'relative' }}>
 

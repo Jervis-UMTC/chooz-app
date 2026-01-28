@@ -1,5 +1,3 @@
-// Sound effects using Web Audio API - no external files needed
-
 let audioContext = null;
 let isMuted = false;
 
@@ -16,7 +14,6 @@ const getAudioContext = () => {
   return audioContext;
 };
 
-// Click/tick sound for wheel segments
 export const playTick = (pitch = 1) => {
   if (isMuted) return;
   try {
@@ -40,7 +37,6 @@ export const playTick = (pitch = 1) => {
   }
 };
 
-// Celebration fanfare for winner
 export const playWin = () => {
   if (isMuted) return;
   try {
@@ -70,7 +66,6 @@ export const playWin = () => {
   }
 };
 
-// UI interaction click sound
 export const playUiClick = () => {
   if (isMuted) return;
   try {
@@ -81,7 +76,6 @@ export const playUiClick = () => {
     oscillator.connect(gainNode);
     gainNode.connect(ctx.destination);
 
-    // High pitched short blip
     oscillator.frequency.value = 1200;
     oscillator.type = 'sine';
 
@@ -95,7 +89,6 @@ export const playUiClick = () => {
   }
 };
 
-// Initialize audio context on user interaction (required by browsers)
 export const initAudio = () => {
   try {
     const ctx = getAudioContext();

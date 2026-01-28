@@ -8,7 +8,7 @@ import WheelLogo from '../../assets/wheel-of-names-logo.png';
 const HomeContainer = styled.div`
   padding: 60px 20px;
   width: 100%;
-  min-height: 100vh;
+  min-height: 100dvh;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
@@ -16,7 +16,6 @@ const HomeContainer = styled.div`
   position: relative;
   overflow-x: hidden;
   
-  /* Shared premium background */
   background: radial-gradient(circle at 50% 10%, #1e293b 0%, #0f172a 100%);
 
   &::before {
@@ -44,7 +43,13 @@ const HomeContainer = styled.div`
   }
 
   @media (max-width: 600px) {
-    padding: 30px 16px;
+    padding: 30px 16px calc(30px + env(safe-area-inset-bottom, 0px)) 16px;
+  }
+  
+  @media (prefers-reduced-motion: reduce) {
+    &::before {
+      animation: none;
+    }
   }
 `;
 
@@ -88,10 +93,17 @@ const Card = styled(motion.div)`
   flex-direction: column;
   align-items: center;
   text-align: center;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
   
   &:hover {
     border-color: ${props => props.$accentColor || BRAND_COLORS.orange};
     box-shadow: 0 0 30px -8px ${props => props.$accentColor || BRAND_COLORS.orange}40;
+  }
+  
+  @media (max-width: 600px) {
+    padding: 24px;
+    border-radius: 16px;
   }
 `;
 

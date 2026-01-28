@@ -164,7 +164,6 @@ const WheelCanvas = ({ names, mustSpin, prizeNumber, onStopSpinning, onSpin, spi
       const activeColor = GAME_COLORS[activeIndex % GAME_COLORS.length];
       const activeName = effectiveNames[activeIndex];
 
-      // Play tick sound when crossing to new segment
       if (isSpinningRef.current && lastSegmentRef.current !== -1 && lastSegmentRef.current !== activeIndex) {
         const progress = speedRef.current > 0 ? Math.min(1, speedRef.current / 0.5) : 0.5;
         playTick(0.8 + progress * 0.4);
