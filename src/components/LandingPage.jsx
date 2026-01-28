@@ -8,9 +8,34 @@ const LandingContainer = styled.div`
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  height: 100vh;
+  height: 100dvh;
   width: 100%;
   animation: fadeIn 0.5s ease-in;
+  background: radial-gradient(circle at 50% 50%, #1e293b 0%, #0f172a 100%);
+  position: relative;
+  overflow: hidden;
+  padding: env(safe-area-inset-top, 0) env(safe-area-inset-right, 0) env(safe-area-inset-bottom, 0) env(safe-area-inset-left, 0);
+
+  &::before {
+    content: '';
+    position: absolute;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle, rgba(139, 92, 246, 0.05) 0%, transparent 50%);
+    animation: rotate 20s linear infinite;
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  @keyframes rotate {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
 
   @keyframes fadeIn {
     from { opacity: 0; }
@@ -30,6 +55,11 @@ const LogoImage = styled.img`
     50% { transform: translateY(-20px); }
     100% { transform: translateY(0px); }
   }
+
+  @media (max-width: 600px) {
+    width: 300px;
+    margin-bottom: 30px;
+  }
 `;
 
 const StartButton = styled(Button)`
@@ -38,6 +68,11 @@ const StartButton = styled(Button)`
   border-radius: 50px;
   text-transform: uppercase;
   letter-spacing: 2px;
+  
+  @media (max-width: 600px) {
+    font-size: 1.25rem;
+    padding: 14px 36px;
+  }
 `;
 
 const LandingPage = ({ onStart }) => {

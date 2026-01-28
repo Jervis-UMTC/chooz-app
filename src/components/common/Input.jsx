@@ -10,6 +10,8 @@ export const Input = styled.input`
   font-size: 1rem;
   transition: border-color 0.2s;
   box-sizing: border-box;
+  min-height: 44px;
+  -webkit-tap-highlight-color: transparent;
 
   &:focus {
     outline: none;
@@ -18,5 +20,9 @@ export const Input = styled.input`
 
   &::placeholder {
     color: #64748b;
+  }
+  
+  @media (max-width: 500px) {
+    font-size: 16px; /* Prevents iOS zoom on focus */
   }
 `;

@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import WheelGame from './components/Wheel/WheelGame'
 import LandingPage from './components/LandingPage'
 import HomePage from './components/Home/HomePage'
@@ -49,12 +49,26 @@ const BackButton = styled.button`
 
 function App() {
   const [view, setView] = useState('landing');
-  const [names, setNames] = useState(['Alice', 'Bob', 'Charlie', 'David', 'Eve', 'Frank']);
+  const [names, setNames] = useState(() => {
+    const saved = localStorage.getItem('chooz_names');
+    return saved ? JSON.parse(saved) : ['Alice', 'Bob', 'Charlie', 'David', 'Eve', 'Frank'];
+  });
   const [mustSpin, setMustSpin] = useState(false);
   const [prizeNumber, setPrizeNumber] = useState(0);
   const [winner, setWinner] = useState(null);
   const [spinDuration, setSpinDuration] = useState(5);
-  const [history, setHistory] = useState([]);
+  const [history, setHistory] = useState(() => {
+    const saved = localStorage.getItem('chooz_history');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('chooz_names', JSON.stringify(names));
+  }, [names]);
+
+  useEffect(() => {
+    localStorage.setItem('chooz_history', JSON.stringify(history));
+  }, [history]);
 
   const setWinnerWithHistory = (newWinner) => {
     setWinner(newWinner);

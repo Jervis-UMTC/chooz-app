@@ -11,6 +11,9 @@ export const Button = styled.button`
   cursor: pointer;
   transition: transform 0.2s, box-shadow 0.2s;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  min-height: 44px;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 
   &:hover {
     transform: translateY(-2px);
@@ -18,7 +21,7 @@ export const Button = styled.button`
   }
 
   &:active {
-    transform: translateY(0);
+    transform: scale(0.97);
   }
 
   &:disabled {

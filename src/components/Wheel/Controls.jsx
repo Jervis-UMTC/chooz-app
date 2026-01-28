@@ -4,24 +4,36 @@ import { Button } from '../common/Button';
 import { Input } from '../common/Input';
 import { BRAND_COLORS } from '../../utils/colors';
 import { motion, AnimatePresence } from 'framer-motion';
-import { initAudio } from '../../utils/sounds';
+import { initAudio, playUiClick } from '../../utils/sounds';
 import { ShuffleIcon, CloseIcon, PlusIcon, ClearAllIcon, ImportIcon, SaveIcon, HistoryIcon } from '../common/Icons';
 
 const ControlsContainer = styled(motion.div)`
-  background-color: rgba(15, 23, 42, 0.6);
-  backdrop-filter: blur(16px);
-  padding: 24px;
+  background-color: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  padding: 20px;
   border-radius: 20px;
   border: 1px solid rgba(255, 255, 255, 0.1);
   width: 320px;
   display: flex;
   flex-direction: column;
   gap: 12px;
-  margin-left: 40px;
   height: min-content;
-  max-height: 90vh;
+  max-height: 70vh; 
   overflow-y: auto;
-  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.3);
+  -webkit-overflow-scrolling: touch;
+  box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.5);
+  transition: all 0.3s ease;
+
+  @media (max-width: 900px) {
+    width: 100%;
+    max-width: none;
+    border-radius: 16px;
+    padding: 16px;
+    gap: 10px;
+    max-height: none;
+    flex-shrink: 0;
+  }
 `;
 
 const NameList = styled.ul`
@@ -38,6 +50,23 @@ const NameList = styled.ul`
     background-color: rgba(255, 255, 255, 0.2);
     border-radius: 3px;
   }
+`;
+
+const EmptyState = styled.div`
+  text-align: center;
+  padding: 20px;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 0.85rem;
+  line-height: 1.5;
+`;
+
+const WarningMessage = styled.div`
+  color: #f59e0b;
+  font-size: 0.75rem;
+  padding: 6px 10px;
+  background: rgba(245, 158, 11, 0.1);
+  border-radius: 6px;
+  margin-top: -4px;
 `;
 
 const NameItem = styled(motion.li)`
@@ -124,6 +153,11 @@ const IconButton = styled.button`
     background: rgba(255, 255, 255, 0.15);
   }
   
+  &:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px ${BRAND_COLORS.yellow}40;
+  }
+  
   &:disabled {
     opacity: 0.4;
     cursor: not-allowed;
@@ -148,6 +182,11 @@ const DurationButton = styled.button`
   
   &:hover {
     background: rgba(255, 255, 255, 0.25);
+  }
+  
+  &:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px ${BRAND_COLORS.yellow}40;
   }
 `;
 
@@ -251,6 +290,7 @@ const Controls = ({ names, setNames, onSpin, isSpinning, spinDuration, setSpinDu
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [listName, setListName] = useState('');
   const [showLoadModal, setShowLoadModal] = useState(false);
+  const [duplicateWarning, setDuplicateWarning] = useState('');
 
   useEffect(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
@@ -260,13 +300,22 @@ const Controls = ({ names, setNames, onSpin, isSpinning, spinDuration, setSpinDu
   }, []);
 
   const handleAdd = () => {
-    if (newName.trim()) {
-      setNames([...names, newName.trim()]);
+    playUiClick();
+    const trimmed = newName.trim();
+    if (trimmed) {
+      if (names.some(n => n.toLowerCase() === trimmed.toLowerCase())) {
+        setDuplicateWarning(`"${trimmed}" is already in the list`);
+        setTimeout(() => setDuplicateWarning(''), 3000);
+        return;
+      }
+      setNames([...names, trimmed]);
       setNewName('');
+      setDuplicateWarning('');
     }
   };
 
   const handleRemove = (index) => {
+    playUiClick();
     const newNames = names.filter((_, i) => i !== index);
     setNames(newNames);
   };
@@ -278,6 +327,7 @@ const Controls = ({ names, setNames, onSpin, isSpinning, spinDuration, setSpinDu
   };
 
   const handleShuffle = () => {
+    playUiClick();
     const shuffled = [...names];
     for (let i = shuffled.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
@@ -288,6 +338,7 @@ const Controls = ({ names, setNames, onSpin, isSpinning, spinDuration, setSpinDu
 
   const handleClearAll = () => {
     if (names.length > 0 && confirm('Clear all names?')) {
+      playUiClick();
       setNames([]);
     }
   };
@@ -329,9 +380,9 @@ const Controls = ({ names, setNames, onSpin, isSpinning, spinDuration, setSpinDu
   return (
     <>
       <ControlsContainer
-        initial={{ opacity: 0, x: 20 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 0.5, delay: 0.2 }}
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3, ease: 'easeOut' }}
       >
         {/* Add Name */}
         <ButtonRow>
@@ -341,27 +392,31 @@ const Controls = ({ names, setNames, onSpin, isSpinning, spinDuration, setSpinDu
             onKeyDown={handleKeyDown}
             placeholder="Add a name..."
             style={{ flex: 1 }}
+            aria-label="Enter name to add"
           />
-          <IconButton onClick={handleAdd} title="Add name">
+          <IconButton onClick={handleAdd} title="Add name" aria-label="Add name">
             <PlusIcon size={16} />
           </IconButton>
         </ButtonRow>
 
+        {/* Duplicate Warning */}
+        {duplicateWarning && <WarningMessage role="alert">{duplicateWarning}</WarningMessage>}
+
         {/* Action buttons */}
-        <ButtonRow>
-          <IconButton onClick={handleShuffle} disabled={names.length < 2} title="Shuffle">
+        <ButtonRow role="toolbar" aria-label="List actions">
+          <IconButton onClick={handleShuffle} disabled={names.length < 2} title="Shuffle" aria-label="Shuffle names">
             <ShuffleIcon size={14} />
           </IconButton>
-          <IconButton onClick={() => setShowImport(!showImport)} title="Import names">
+          <IconButton onClick={() => setShowImport(!showImport)} title="Import names" aria-label="Import names">
             <ImportIcon size={14} />
           </IconButton>
-          <IconButton onClick={handleClearAll} disabled={names.length === 0} title="Clear all">
+          <IconButton onClick={handleClearAll} disabled={names.length === 0} title="Clear all" aria-label="Clear all names">
             <ClearAllIcon size={14} />
           </IconButton>
-          <IconButton onClick={() => setShowSaveModal(true)} disabled={names.length === 0} title="Save list">
+          <IconButton onClick={() => setShowSaveModal(true)} disabled={names.length === 0} title="Save list" aria-label="Save list">
             <SaveIcon size={14} />
           </IconButton>
-          <IconButton onClick={() => setShowLoadModal(true)} disabled={savedLists.length === 0} title="Load list">
+          <IconButton onClick={() => setShowLoadModal(true)} disabled={savedLists.length === 0} title="Load list" aria-label="Load saved list">
             <HistoryIcon size={14} />
           </IconButton>
         </ButtonRow>
@@ -396,23 +451,31 @@ const Controls = ({ names, setNames, onSpin, isSpinning, spinDuration, setSpinDu
         </AnimatePresence>
 
         {/* Name List */}
-        <NameList>
-          <AnimatePresence initial={false}>
-            {names.map((name, index) => (
-              <NameItem
-                key={`${name}-${index}`}
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                transition={{ duration: 0.15 }}
-              >
-                <span>{name}</span>
-                <RemoveButton onClick={() => handleRemove(index)} title="Remove">
-                  <CloseIcon size={10} />
-                </RemoveButton>
-              </NameItem>
-            ))}
-          </AnimatePresence>
+        <NameList role="list" aria-label="Names list">
+          {names.length === 0 ? (
+            <EmptyState>
+              No names yet!<br />
+              Add names above or import a list to get started.
+            </EmptyState>
+          ) : (
+            <AnimatePresence initial={false}>
+              {names.map((name, index) => (
+                <NameItem
+                  key={`${name}-${index}`}
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.15 }}
+                  role="listitem"
+                >
+                  <span>{name}</span>
+                  <RemoveButton onClick={() => handleRemove(index)} title="Remove" aria-label={`Remove ${name}`}>
+                    <CloseIcon size={10} />
+                  </RemoveButton>
+                </NameItem>
+              ))}
+            </AnimatePresence>
+          )}
         </NameList>
 
         {/* Duration */}
@@ -508,16 +571,20 @@ const Controls = ({ names, setNames, onSpin, isSpinning, spinDuration, setSpinDu
               onClick={e => e.stopPropagation()}
             >
               <ModalTitle>Load List</ModalTitle>
-              {savedLists.map((list, i) => (
-                <NameItem key={i} style={{ marginBottom: 8 }}>
-                  <span onClick={() => handleLoadList(list)} style={{ cursor: 'pointer', flex: 1 }}>
-                    {list.name} ({list.names.length})
-                  </span>
-                  <RemoveButton onClick={() => handleDeleteList(list)} title="Delete">
-                    <CloseIcon size={10} />
-                  </RemoveButton>
-                </NameItem>
-              ))}
+              {savedLists.length === 0 ? (
+                <EmptyState>No saved lists yet.</EmptyState>
+              ) : (
+                savedLists.map((list, i) => (
+                  <NameItem key={i} style={{ marginBottom: 8 }}>
+                    <span onClick={() => handleLoadList(list)} style={{ cursor: 'pointer', flex: 1 }}>
+                      {list.name} ({list.names.length})
+                    </span>
+                    <RemoveButton onClick={() => handleDeleteList(list)} title="Delete">
+                      <CloseIcon size={10} />
+                    </RemoveButton>
+                  </NameItem>
+                ))
+              )}
               <IconButton onClick={() => setShowLoadModal(false)} style={{ marginTop: 8 }}>
                 <CloseIcon size={14} />
               </IconButton>

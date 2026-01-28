@@ -1,28 +1,35 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import styled from 'styled-components';
 import WheelCanvas from './WheelCanvas';
 import Controls from './Controls';
 import Celebration from './Celebration';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BRAND_COLORS } from '../../utils/colors';
-import { ArrowLeftIcon, StopIcon, TrashIcon } from '../common/Icons';
+import { initAudio, setMuted, getMuted } from '../../utils/sounds';
+import { ArrowLeftIcon, StopIcon, TrashIcon, VolumeIcon, MuteIcon } from '../common/Icons';
 
 const GameContainer = styled(motion.div)`
   display: flex;
   flex-direction: row;
   align-items: center; 
-  justify-content: space-between; 
-  padding: 0; 
+  justify-content: space-evenly; 
+  padding: 0 40px; 
   width: 100%;
   height: 100%; 
   overflow: hidden; 
   flex-wrap: nowrap; 
   position: relative;
+  gap: 30px;
+  transition: all 0.3s ease;
   
   @media (max-width: 900px) {
     flex-direction: column;
-    justify-content: center;
+    justify-content: flex-start;
+    align-items: center;
     gap: 20px;
+    padding: 70px 16px calc(20px + env(safe-area-inset-bottom, 0px)) 16px;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
   }
 `;
 
@@ -33,6 +40,25 @@ const FloatingNav = styled.div`
   z-index: 50;
   display: flex;
   gap: 15px;
+  @media (max-width: 600px) {
+    top: 15px;
+    left: 15px;
+    gap: 10px;
+  }
+`;
+
+const ControlButtons = styled.div`
+  position: absolute;
+  top: 30px;
+  right: 30px;
+  z-index: 50;
+  display: flex;
+  gap: 15px;
+  @media (max-width: 600px) {
+    top: 15px;
+    right: 15px;
+    gap: 10px;
+  }
 `;
 
 const NavButton = styled.button`
@@ -49,11 +75,19 @@ const NavButton = styled.button`
   transition: all 0.2s;
   font-weight: 500;
   backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
   min-width: 90px;
+  min-height: 44px;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
   
   &:hover {
     background: rgba(255, 255, 255, 0.2);
     transform: translateY(-2px);
+  }
+  
+  &:active {
+    transform: scale(0.96);
   }
 `;
 
@@ -72,6 +106,31 @@ const StopButton = styled(NavButton)`
     background: rgba(239, 68, 68, 0.4);
     box-shadow: 0 0 15px rgba(239, 68, 68, 0.3);
     color: white;
+  }
+`;
+
+const WheelWrapper = styled.div`
+  flex: 1 1 auto;
+  width: 100%;
+  height: 100%;
+  max-width: 700px;
+  max-height: 700px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  
+  @media (max-width: 900px) {
+    flex: 0 0 auto;
+    width: 90vw;
+    height: auto;
+    max-width: 350px;
+    max-height: 350px;
+    aspect-ratio: 1;
+  }
+  
+  @media (max-height: 700px) and (max-width: 900px) {
+    max-width: 280px;
+    max-height: 280px;
   }
 `;
 
@@ -99,6 +158,11 @@ const WinnerModal = styled(motion.div)`
   box-shadow: 0 0 60px rgba(254, 221, 40, 0.15), 0 20px 40px -10px rgba(0,0,0,0.5);
   max-width: 90%;
   width: 450px;
+  
+  @media (max-width: 500px) {
+    padding: 30px 20px;
+    border-radius: 20px;
+  }
 `;
 
 const WinnerTitle = styled.h2`
@@ -114,16 +178,29 @@ const WinnerName = styled(motion.div)`
   font-weight: 800;
   margin: 20px 0;
   background: linear-gradient(135deg, #fff 0%, #cbd5e1 100%);
+  background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   filter: drop-shadow(0 4px 6px rgba(0,0,0,0.3));
+  word-break: break-word;
+  
+  @media (max-width: 500px) {
+    font-size: 2.5rem;
+    margin: 15px 0;
+  }
 `;
 
 const ButtonGroup = styled.div`
   display: flex;
-  gap: 15px;
+  gap: 12px;
   justify-content: center;
   margin-top: 30px;
+  flex-wrap: wrap;
+  
+  @media (max-width: 500px) {
+    margin-top: 20px;
+    gap: 10px;
+  }
 `;
 
 const ActionButton = styled.button`
@@ -136,10 +213,19 @@ const ActionButton = styled.button`
   cursor: pointer;
   transition: all 0.2s;
   font-weight: 600;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 
   &:hover {
     background: rgba(255, 255, 255, 0.2);
     transform: translateY(-2px);
+  }
+  
+  @media (max-width: 500px) {
+    padding: 10px 18px;
+    font-size: 0.9rem;
   }
 `;
 
@@ -164,9 +250,18 @@ const WheelGame = ({
   setSpinDuration,
   history = []
 }) => {
+  const [isMutedState, setIsMutedState] = useState(getMuted());
+  const isAbortingRef = React.useRef(false);
+
+  const toggleMute = () => {
+    const newMuted = !isMutedState;
+    setMuted(newMuted);
+    setIsMutedState(newMuted);
+  };
 
   const handleSpinClick = () => {
     if (!mustSpin && names.length > 1) {
+      initAudio();
       const newPrizeNumber = Math.floor(Math.random() * names.length);
       setPrizeNumber(newPrizeNumber);
       setMustSpin(true);
@@ -174,8 +269,30 @@ const WheelGame = ({
     }
   };
 
+  // Spacebar keyboard shortcut to spin
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Don't trigger if user is typing in an input
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+      if (e.code === 'Space' && !mustSpin && !winner && names.length > 1) {
+        e.preventDefault();
+        handleSpinClick();
+      }
+      if (e.code === 'Escape' && winner) {
+        setWinner(null);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [mustSpin, winner, names.length]);
+
   const handleStopSpinning = () => {
     setMustSpin(false);
+    if (isAbortingRef.current) {
+      isAbortingRef.current = false;
+      setWinner(null);
+      return;
+    }
     setWinner(names[prizeNumber]);
   };
 
@@ -187,14 +304,20 @@ const WheelGame = ({
     }
   };
 
+
+
+  // 100dvh is better for mobile browsers to handle address bars
   return (
-    <div style={{ width: '100%', height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', overflow: 'hidden', position: 'relative' }}>
+    <div style={{ width: '100%', height: '100dvh', display: 'flex', flexDirection: 'column', alignItems: 'center', overflow: 'hidden', position: 'relative' }}>
 
       <FloatingNav>
         {mustSpin ? (
-          <StopButton onClick={() => setMustSpin(false)}>
+          <StopButton onClick={() => {
+            isAbortingRef.current = true;
+            setMustSpin(false);
+          }}>
             <StopIcon size={12} />
-            STOP
+            ABORT
           </StopButton>
         ) : (
           <NavButton onClick={onBack}>
@@ -203,22 +326,16 @@ const WheelGame = ({
         )}
       </FloatingNav>
 
+      <ControlButtons>
+        <NavButton onClick={toggleMute} style={{ padding: '8px', minWidth: '40px', borderRadius: '50%' }} title={isMutedState ? "Unmute" : "Mute"}>
+          {isMutedState ? <MuteIcon size={20} /> : <VolumeIcon size={20} />}
+        </NavButton>
+      </ControlButtons>
+
       {winner && <Celebration particleCount={40} />}
 
       <GameContainer>
-        <motion.div
-          style={{
-            flex: 1,
-            height: '100%',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            minWidth: '0',
-            position: 'relative',
-            paddingLeft: '20px'
-          }}
-          animate={{ flex: 1 }}
-        >
+        <WheelWrapper>
           <WheelCanvas
             names={names}
             mustSpin={mustSpin}
@@ -227,25 +344,22 @@ const WheelGame = ({
             onSpin={handleSpinClick}
             spinDuration={spinDuration}
           />
-        </motion.div>
+        </WheelWrapper>
 
-        <AnimatePresence>
+        <AnimatePresence mode="wait">
           {!mustSpin && (
             <motion.div
-              initial={{ width: 340, opacity: 1 }}
-              animate={{ width: 340, opacity: 1 }}
-              exit={{ width: 0, opacity: 0, paddingRight: 0 }}
-              transition={{ duration: 0.4 }}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 20, scale: 0.95 }}
+              transition={{ duration: 0.3, ease: 'easeOut' }}
               style={{
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
                 zIndex: 10,
-                paddingRight: '30px',
-                overflow: 'hidden',
-                whiteSpace: 'nowrap',
-                height: '100%',
-                justifyContent: 'center'
+                width: '100%',
+                maxWidth: '400px',
               }}
             >
               <Controls

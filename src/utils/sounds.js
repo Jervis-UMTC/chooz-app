@@ -1,6 +1,13 @@
 // Sound effects using Web Audio API - no external files needed
 
 let audioContext = null;
+let isMuted = false;
+
+export const setMuted = (muted) => {
+  isMuted = muted;
+};
+
+export const getMuted = () => isMuted;
 
 const getAudioContext = () => {
   if (!audioContext) {
@@ -11,6 +18,7 @@ const getAudioContext = () => {
 
 // Click/tick sound for wheel segments
 export const playTick = (pitch = 1) => {
+  if (isMuted) return;
   try {
     const ctx = getAudioContext();
     const oscillator = ctx.createOscillator();
@@ -34,6 +42,7 @@ export const playTick = (pitch = 1) => {
 
 // Celebration fanfare for winner
 export const playWin = () => {
+  if (isMuted) return;
   try {
     const ctx = getAudioContext();
     const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
@@ -58,6 +67,31 @@ export const playWin = () => {
     });
   } catch (e) {
     // Audio not supported or blocked
+  }
+};
+
+// UI interaction click sound
+export const playUiClick = () => {
+  if (isMuted) return;
+  try {
+    const ctx = getAudioContext();
+    const oscillator = ctx.createOscillator();
+    const gainNode = ctx.createGain();
+
+    oscillator.connect(gainNode);
+    gainNode.connect(ctx.destination);
+
+    // High pitched short blip
+    oscillator.frequency.value = 1200;
+    oscillator.type = 'sine';
+
+    gainNode.gain.setValueAtTime(0.05, ctx.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.05);
+
+    oscillator.start(ctx.currentTime);
+    oscillator.stop(ctx.currentTime + 0.05);
+  } catch (e) {
+    // Audio not supported
   }
 };
 

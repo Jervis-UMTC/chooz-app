@@ -8,8 +8,44 @@ import WheelLogo from '../../assets/wheel-of-names-logo.png';
 const HomeContainer = styled.div`
   padding: 60px 20px;
   width: 100%;
-  max-width: 1000px;
+  min-height: 100vh;
   margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  overflow-x: hidden;
+  
+  /* Shared premium background */
+  background: radial-gradient(circle at 50% 10%, #1e293b 0%, #0f172a 100%);
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle, rgba(139, 92, 246, 0.03) 0%, transparent 40%);
+    animation: rotate 30s linear infinite;
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  @keyframes rotate {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+
+  > * {
+    z-index: 1;
+    width: 100%;
+    max-width: 1000px;
+  }
+
+  @media (max-width: 600px) {
+    padding: 30px 16px;
+  }
 `;
 
 const Header = styled.div`
@@ -24,6 +60,10 @@ const Title = styled.h2`
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   margin: 0 0 12px 0;
+
+  @media (max-width: 600px) {
+    font-size: 2rem;
+  }
 `;
 
 const Subtitle = styled.p`
