@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { initAudio, setMuted, getMuted, playDiceRoll, playWin } from '../../utils/sounds';
 import { ArrowLeftIcon, VolumeIcon, MuteIcon } from '../common/Icons';
+import { generateDiceResults, calculateTotal, updateHistory } from './DiceUtils';
 import {
   GameContainer,
   FloatingNav,
@@ -61,12 +62,13 @@ const DicePips = ({ value }) => {
  * @param {object} props
  * @param {function} props.onBack - Callback to navigate back to the home page.
  */
-import { generateDiceResults, calculateTotal, updateHistory } from './DiceUtils';
-
-// ... imports ...
-
 const DiceGame = ({ onBack }) => {
-  // ... state ...
+  const [isRolling, setIsRolling] = useState(false);
+  const [results, setResults] = useState(null);
+  const [displayedResults, setDisplayedResults] = useState(null);
+  const [diceCount, setDiceCount] = useState(1);
+  const [history, setHistory] = useState([]);
+  const [isMuted, setIsMuted] = useState(getMuted());
 
   const rollDice = useCallback(() => {
     if (isRolling) return;
