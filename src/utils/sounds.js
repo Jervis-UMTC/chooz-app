@@ -127,6 +127,52 @@ export const playUiClick = () => {
   }
 };
 
+const COIN_WHOOSH_START_FREQ = 600;
+const COIN_WHOOSH_END_FREQ = 200;
+const COIN_WHOOSH_DURATION = 0.4;
+const COIN_WHOOSH_GAIN = 0.08;
+const COIN_CLINK_FREQ = 1500;
+const COIN_CLINK_GAIN = 0.12;
+const COIN_CLINK_DURATION = 0.08;
+
+/**
+ * Plays a coin flip sound — a descending "whoosh" followed by a metallic "clink".
+ */
+export const playCoinFlip = () => {
+  if (isMuted) return;
+  try {
+    const context = getAudioContext();
+
+    // Whoosh: descending frequency sweep
+    const whoosh = context.createOscillator();
+    const whooshGain = context.createGain();
+    whoosh.connect(whooshGain);
+    whooshGain.connect(context.destination);
+    whoosh.type = 'sawtooth';
+    whoosh.frequency.setValueAtTime(COIN_WHOOSH_START_FREQ, context.currentTime);
+    whoosh.frequency.exponentialRampToValueAtTime(COIN_WHOOSH_END_FREQ, context.currentTime + COIN_WHOOSH_DURATION);
+    whooshGain.gain.setValueAtTime(COIN_WHOOSH_GAIN, context.currentTime);
+    whooshGain.gain.exponentialRampToValueAtTime(TICK_FADE_TARGET, context.currentTime + COIN_WHOOSH_DURATION);
+    whoosh.start(context.currentTime);
+    whoosh.stop(context.currentTime + COIN_WHOOSH_DURATION);
+
+    // Clink: short metallic ping at the end
+    const clink = context.createOscillator();
+    const clinkGain = context.createGain();
+    clink.connect(clinkGain);
+    clinkGain.connect(context.destination);
+    clink.type = 'sine';
+    clink.frequency.value = COIN_CLINK_FREQ;
+    const clinkStart = context.currentTime + COIN_WHOOSH_DURATION * 0.8;
+    clinkGain.gain.setValueAtTime(COIN_CLINK_GAIN, clinkStart);
+    clinkGain.gain.exponentialRampToValueAtTime(TICK_FADE_TARGET, clinkStart + COIN_CLINK_DURATION);
+    clink.start(clinkStart);
+    clink.stop(clinkStart + COIN_CLINK_DURATION);
+  } catch {
+    // Audio not supported
+  }
+};
+
 /**
  * Resumes the AudioContext if it was suspended (e.g. by autoplay policy).
  * Should be called on a user gesture before the first sound is needed.

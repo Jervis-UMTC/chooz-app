@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import WheelGame from './components/Wheel/WheelGame'
 import LandingPage from './components/LandingPage'
 import HomePage from './components/Home/HomePage'
+import CoinGame from './components/Coin/CoinGame'
 import './index.css'
 import ChoozTextLogo from './assets/chooz-text-logo.svg'
 import styled from 'styled-components';
@@ -92,7 +93,7 @@ function App() {
 
   return (
     <div className="app-container">
-      {view !== 'landing' && view !== 'wheel' && (
+      {view !== 'landing' && view !== 'wheel' && view !== 'coin' && (
         <HeaderContainer>
           <HeaderLeft>
             <BackButton onClick={() => navigate('home')}>
@@ -135,6 +136,9 @@ function App() {
               setSpinDuration={setSpinDuration}
               history={history}
             />
+          )}
+          {view === 'coin' && (
+            <CoinGame onBack={() => navigate('home')} />
           )}
         </motion.div>
       </AnimatePresence>

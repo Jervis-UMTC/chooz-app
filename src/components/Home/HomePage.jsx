@@ -193,7 +193,7 @@ const HomePage = ({ onNavigate }) => {
       desc: 'A quick heads or tails for those 50/50 decisions.',
       icon: <CoinIcon />,
       accentColor: BRAND_COLORS.yellow,
-      onClick: () => alert('Coming Soon!')
+      onClick: () => onNavigate('coin')
     },
     {
       id: 'dice',
