@@ -22,6 +22,8 @@ import {
   HistoryList,
   HistoryItem,
   TextArea,
+  FlexInput,
+  FlexButton,
 } from './Controls.styles';
 
 const STORAGE_KEY = 'chooz_saved_lists';
@@ -129,12 +131,11 @@ const Controls = ({ names, setNames, onSpin, isSpinning, spinDuration, setSpinDu
       >
         {/* Add Name */}
         <ButtonRow>
-          <Input
+          <FlexInput
             value={newName}
             onChange={(event) => setNewName(event.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Add a name..."
-            style={{ flex: 1 }}
             aria-label="Enter name to add"
           />
           <IconButton onClick={handleAdd} title="Add name" aria-label="Add name">
@@ -179,12 +180,11 @@ const Controls = ({ names, setNames, onSpin, isSpinning, spinDuration, setSpinDu
                 placeholder={"John\nJane\nBob\n..."}
               />
               <ButtonRow style={{ marginTop: 8 }}>
-                <Button
+                <FlexButton
                   onClick={handleImport}
-                  style={{ flex: 1, padding: '8px', fontSize: '0.85rem' }}
                 >
                   Import
-                </Button>
+                </FlexButton>
                 <IconButton onClick={() => setIsImportVisible(false)}>
                   <CloseIcon size={14} />
                 </IconButton>

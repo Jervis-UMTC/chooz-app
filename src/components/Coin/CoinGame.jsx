@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { initAudio, setMuted, getMuted, playCoinFlip, playWin } from '../../utils/sounds';
 import { ArrowLeftIcon, VolumeIcon, MuteIcon } from '../common/Icons';
@@ -64,6 +64,19 @@ const CoinGame = ({ onBack }) => {
       playWin();
     }, FLIP_DURATION_MS);
   }, [isFlipping]);
+
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA') return;
+      if (event.code === 'Space' && !isFlipping) {
+        event.preventDefault();
+        handleFlip();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleFlip, isFlipping]);
+
 
   const handleToggleMute = useCallback(() => {
     const newMuted = !isMuted;
@@ -139,6 +152,7 @@ const CoinGame = ({ onBack }) => {
         disabled={isFlipping}
         whileHover={{ scale: 1.03 }}
         whileTap={{ scale: 0.97 }}
+        aria-label={isFlipping ? 'Coin is flipping' : 'Flip coin'}
       >
         {isFlipping ? 'Flipping...' : 'Flip Coin'}
       </FlipButton>

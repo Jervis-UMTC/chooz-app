@@ -1,7 +1,7 @@
 import styled from 'styled-components';
 import { motion } from 'framer-motion';
 import { BRAND_COLORS } from '../../utils/colors';
-import { ArrowRightIcon } from '../common/Icons';
+import { ArrowRightIcon, CoinIcon, DiceIcon } from '../common/Icons';
 import WheelLogo from '../../assets/wheel-of-names-logo.png';
 
 const HomeContainer = styled.div`
@@ -159,23 +159,7 @@ const PlayButton = styled.span`
   }
 `;
 
-const CoinIcon = ({ color = BRAND_COLORS.yellow }) => (
-  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.5">
-    <circle cx="12" cy="12" r="10" />
-    <path d="M12 6v12M9 10h6M9 14h6" />
-  </svg>
-);
 
-const DiceIcon = ({ color = BRAND_COLORS.danger }) => (
-  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.5">
-    <rect x="3" y="3" width="18" height="18" rx="3" />
-    <circle cx="8" cy="8" r="1.5" fill={color} />
-    <circle cx="16" cy="8" r="1.5" fill={color} />
-    <circle cx="8" cy="16" r="1.5" fill={color} />
-    <circle cx="16" cy="16" r="1.5" fill={color} />
-    <circle cx="12" cy="12" r="1.5" fill={color} />
-  </svg>
-);
 
 const HomePage = ({ onNavigate }) => {
   const games = [

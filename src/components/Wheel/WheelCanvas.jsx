@@ -400,6 +400,8 @@ const WheelCanvas = ({ names, mustSpin, prizeNumber, onStopSpinning, onSpin, spi
       <canvas
         ref={canvasRef}
         onClick={handleCanvasClick}
+        role="img"
+        aria-label="Spin wheel with name segments"
         style={{ width: '100%', height: '100%', display: 'block', cursor: (mustSpin || isDemo) ? 'default' : 'pointer' }}
       />
     </div>

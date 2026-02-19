@@ -242,3 +242,20 @@ export const ControlsWrapper = styled(motion.div)`
   width: 100%;
   max-width: 400px;
 `;
+
+export const PageContainer = styled.div`
+  width: 100%;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  overflow: hidden;
+  position: relative;
+`;
+
+export const MuteButton = styled(NavButton)`
+  padding: 8px;
+  min-width: 40px;
+  border-radius: 50%;
+`;
+

@@ -31,12 +31,3 @@ export const Button = styled.button`
   }
 `;
 
-export const SecondaryButton = styled(Button)`
-  background: transparent;
-  border: 2px solid var(--brand-orange);
-  color: var(--brand-orange);
-  
-  &:hover {
-    background: rgba(254, 126, 0, 0.1);
-  }
-`;

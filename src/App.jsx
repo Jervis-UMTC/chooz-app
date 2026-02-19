@@ -6,7 +6,6 @@ import CoinGame from './components/Coin/CoinGame'
 import './index.css'
 import ChoozTextLogo from './assets/chooz-text-logo.svg'
 import styled from 'styled-components';
-// eslint-disable-next-line no-unused-vars
 import { AnimatePresence, motion } from 'framer-motion';
 
 import { ArrowLeftIcon } from './components/common/Icons';
@@ -53,6 +52,13 @@ const BackButton = styled.button`
     background: rgba(255, 255, 255, 0.2);
     transform: translateX(-2px);
   }
+`;
+
+const PageTransition = styled(motion.div)`
+  width: 100%;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
 `;
 
 function App() {
@@ -111,13 +117,12 @@ function App() {
       )}
 
       <AnimatePresence mode="wait">
-        <motion.div
+        <PageTransition
           key={view}
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -20 }}
           transition={{ duration: 0.3 }}
-          style={{ width: '100%', flex: 1, display: 'flex', flexDirection: 'column' }}
         >
           {view === 'landing' && <LandingPage onStart={() => navigate('home')} />}
           {view === 'home' && <HomePage onNavigate={navigate} />}
@@ -140,7 +145,7 @@ function App() {
           {view === 'coin' && (
             <CoinGame onBack={() => navigate('home')} />
           )}
-        </motion.div>
+        </PageTransition>
       </AnimatePresence>
     </div>
   )

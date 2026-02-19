@@ -93,5 +93,20 @@ export const MuteIcon = ({ size = 16, color = 'currentColor' }) => (
   </svg>
 );
 
+export const CoinIcon = ({ size = 48, color = 'currentColor' }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.5">
+    <circle cx="12" cy="12" r="10" />
+    <path d="M12 6v12M9 10h6M9 14h6" />
+  </svg>
+);
 
-
+export const DiceIcon = ({ size = 48, color = 'currentColor' }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.5">
+    <rect x="3" y="3" width="18" height="18" rx="3" />
+    <circle cx="8" cy="8" r="1.5" fill={color} />
+    <circle cx="16" cy="8" r="1.5" fill={color} />
+    <circle cx="8" cy="16" r="1.5" fill={color} />
+    <circle cx="16" cy="16" r="1.5" fill={color} />
+    <circle cx="12" cy="12" r="1.5" fill={color} />
+  </svg>
+);

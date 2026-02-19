@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import WheelCanvas from './WheelCanvas';
 import Controls from './Controls';
 import Celebration from './Celebration';
@@ -20,6 +20,8 @@ import {
   ActionButton,
   RemoveButton,
   ControlsWrapper,
+  PageContainer,
+  MuteButton,
 } from './WheelGame.styles';
 
 const WheelGame = ({
@@ -35,13 +37,13 @@ const WheelGame = ({
   const [isMutedState, setIsMutedState] = useState(getMuted());
   const isAbortingRef = useRef(false);
 
-  const toggleMute = () => {
+  const toggleMute = useCallback(() => {
     const newMuted = !isMutedState;
     setMuted(newMuted);
     setIsMutedState(newMuted);
-  };
+  }, [isMutedState]);
 
-  const handleSpinClick = () => {
+  const handleSpinClick = useCallback(() => {
     if (!mustSpin && names.length > 1) {
       initAudio();
       const newPrizeNumber = Math.floor(Math.random() * names.length);
@@ -49,7 +51,7 @@ const WheelGame = ({
       setMustSpin(true);
       setWinner(null);
     }
-  };
+  }, [mustSpin, names.length, setPrizeNumber, setMustSpin, setWinner]);
 
   useEffect(() => {
     const handleKeyDown = (event) => {
@@ -76,16 +78,16 @@ const WheelGame = ({
     setWinner(names[prizeNumber]);
   };
 
-  const handleRemoveWinner = () => {
+  const handleRemoveWinner = useCallback(() => {
     if (winner) {
       const newNames = names.filter(name => name !== winner);
       setNames(newNames);
       setWinner(null);
     }
-  };
+  }, [winner, names, setNames, setWinner]);
 
   return (
-    <div style={{ width: '100%', height: '100dvh', display: 'flex', flexDirection: 'column', alignItems: 'center', overflow: 'hidden', position: 'relative' }}>
+    <PageContainer>
 
       <FloatingNav>
         {mustSpin ? (
@@ -104,9 +106,9 @@ const WheelGame = ({
       </FloatingNav>
 
       <ControlButtons>
-        <NavButton onClick={toggleMute} style={{ padding: '8px', minWidth: '40px', borderRadius: '50%' }} title={isMutedState ? "Unmute" : "Mute"}>
+        <MuteButton onClick={toggleMute} title={isMutedState ? "Unmute" : "Mute"}>
           {isMutedState ? <MuteIcon size={20} /> : <VolumeIcon size={20} />}
-        </NavButton>
+        </MuteButton>
       </ControlButtons>
 
       {winner && <Celebration particleCount={40} />}
@@ -185,7 +187,7 @@ const WheelGame = ({
           </ModalBackdrop>
         )}
       </AnimatePresence>
-    </div>
+    </PageContainer>
   );
 };
 
