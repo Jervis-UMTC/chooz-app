@@ -1,4 +1,3 @@
-import React from 'react';
 import styled from 'styled-components';
 import { motion } from 'framer-motion';
 import { BRAND_COLORS } from '../../utils/colors';
@@ -167,7 +166,7 @@ const CoinIcon = ({ color = BRAND_COLORS.yellow }) => (
   </svg>
 );
 
-const DiceIcon = ({ color = '#ef4444' }) => (
+const DiceIcon = ({ color = BRAND_COLORS.danger }) => (
   <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.5">
     <rect x="3" y="3" width="18" height="18" rx="3" />
     <circle cx="8" cy="8" r="1.5" fill={color} />
@@ -201,7 +200,7 @@ const HomePage = ({ onNavigate }) => {
       title: 'Dice Roll',
       desc: 'Roll virtual dice for games or random numbers.',
       icon: <DiceIcon />,
-      accentColor: '#ef4444',
+      accentColor: BRAND_COLORS.danger,
       onClick: () => alert('Coming Soon!')
     }
   ];

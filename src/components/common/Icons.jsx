@@ -1,4 +1,7 @@
-import React from 'react';
+/**
+ * @module Icons — SVG icon components used throughout the app.
+ * Each icon accepts `size` (number, default 16) and `color` (string, default 'currentColor').
+ */
 
 export const ArrowLeftIcon = ({ size = 16, color = 'currentColor' }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

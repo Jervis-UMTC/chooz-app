@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import { useState } from 'react';
 import styled, { keyframes } from 'styled-components';
 import { BRAND_COLORS } from '../../utils/colors';
 
@@ -46,30 +46,36 @@ const COLORS = [
   '#f97316'
 ];
 
+/**
+ * Generates an array of random particle descriptors for the celebration animation.
+ * @param {number} count - Number of particles to generate.
+ * @returns {Array<object>} Array of particle config objects.
+ */
+const generateParticles = (count) =>
+  Array.from({ length: count }, (_, index) => ({
+    id: index,
+    left: Math.random() * 100,
+    size: 6 + Math.random() * 8,
+    color: COLORS[Math.floor(Math.random() * COLORS.length)],
+    duration: 2 + Math.random() * 2,
+    delay: Math.random() * 0.8,
+    shape: Math.random() > 0.5 ? 'circle' : 'square'
+  }));
+
 const Celebration = ({ particleCount = 30 }) => {
-  const particles = useMemo(() => {
-    return Array.from({ length: particleCount }, (_, i) => ({
-      id: i,
-      left: Math.random() * 100,
-      size: 6 + Math.random() * 8,
-      color: COLORS[Math.floor(Math.random() * COLORS.length)],
-      duration: 2 + Math.random() * 2,
-      delay: Math.random() * 0.8,
-      shape: Math.random() > 0.5 ? 'circle' : 'square'
-    }));
-  }, [particleCount]);
+  const [particles] = useState(() => generateParticles(particleCount));
 
   return (
     <CelebrationContainer>
-      {particles.map(p => (
+      {particles.map(particle => (
         <Particle
-          key={p.id}
-          $left={p.left}
-          $size={p.size}
-          $color={p.color}
-          $duration={p.duration}
-          $delay={p.delay}
-          $shape={p.shape}
+          key={particle.id}
+          $left={particle.left}
+          $size={particle.size}
+          $color={particle.color}
+          $duration={particle.duration}
+          $delay={particle.delay}
+          $shape={particle.shape}
         />
       ))}
     </CelebrationContainer>
