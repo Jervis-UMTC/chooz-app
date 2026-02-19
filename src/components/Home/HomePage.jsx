@@ -188,6 +188,14 @@ const HomePage = ({ onNavigate }) => {
       icon: <img src={DiceLogo} alt="Dice Roll" />,
       accentColor: BRAND_COLORS.danger,
       onClick: () => onNavigate('dice')
+    },
+    {
+      id: 'marble',
+      title: 'Marble Race',
+      desc: 'Watch marbles race through obstacles to the finish line.',
+      icon: null,
+      accentColor: '#22c55e',
+      onClick: () => onNavigate('marble')
     }
   ];
 

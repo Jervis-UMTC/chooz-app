@@ -4,6 +4,7 @@ import LandingPage from './components/LandingPage'
 import HomePage from './components/Home/HomePage'
 import CoinGame from './components/Coin/CoinGame'
 import DiceGame from './components/Dice/DiceGame'
+import MarbleGame from './components/MarbleRace/MarbleGame'
 import './index.css'
 import ChoozTextLogo from './assets/chooz-text-logo.svg'
 import styled from 'styled-components';
@@ -72,7 +73,7 @@ function App() {
 
   return (
     <div className="app-container">
-      {view !== 'landing' && view !== 'wheel' && view !== 'coin' && view !== 'dice' && (
+      {view !== 'landing' && view !== 'wheel' && view !== 'coin' && view !== 'dice' && view !== 'marble' && (
         <HeaderContainer>
           <img
             src={ChoozTextLogo}
@@ -114,6 +115,13 @@ function App() {
           )}
           {view === 'dice' && (
             <DiceGame onBack={() => navigate('home')} />
+          )}
+          {view === 'marble' && (
+            <MarbleGame
+              names={names}
+              setNames={setNames}
+              onBack={() => navigate('home')}
+            />
           )}
         </PageTransition>
       </AnimatePresence>

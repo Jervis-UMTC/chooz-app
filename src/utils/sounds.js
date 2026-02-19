@@ -225,3 +225,35 @@ export const initAudio = () => {
     // Audio not supported
   }
 };
+
+const RACE_START_FREQ_START = 200;
+const RACE_START_FREQ_END = 600;
+const RACE_START_DURATION = 0.6;
+const RACE_START_GAIN = 0.1;
+
+/**
+ * Plays a race start sound — an ascending frequency sweep.
+ */
+export const playRaceStart = () => {
+  if (isMuted) return;
+  try {
+    const context = getAudioContext();
+    const oscillator = context.createOscillator();
+    const gainNode = context.createGain();
+
+    oscillator.connect(gainNode);
+    gainNode.connect(context.destination);
+
+    oscillator.type = 'triangle';
+    oscillator.frequency.setValueAtTime(RACE_START_FREQ_START, context.currentTime);
+    oscillator.frequency.exponentialRampToValueAtTime(RACE_START_FREQ_END, context.currentTime + RACE_START_DURATION);
+
+    gainNode.gain.setValueAtTime(RACE_START_GAIN, context.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.001, context.currentTime + RACE_START_DURATION);
+
+    oscillator.start(context.currentTime);
+    oscillator.stop(context.currentTime + RACE_START_DURATION);
+  } catch {
+    // Audio not supported
+  }
+};
