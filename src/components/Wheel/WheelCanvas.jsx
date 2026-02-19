@@ -1,58 +1,34 @@
 import { useRef, useEffect, useState } from 'react';
-import { GAME_COLORS, BRAND_COLORS } from '../../utils/colors';
+import { GAME_COLORS } from '../../utils/colors';
 import { playTick, playWin, initAudio } from '../../utils/sounds';
+import { DRAWING_CONSTANTS } from './WheelConstants';
+import {
+  drawHub,
+  drawPointer,
+  drawActiveLabel,
+  drawSegment
+} from './WheelDrawing';
 
-/* ── Drawing Constants ────────────────────────────── */
-
-const IDLE_ROTATION_SPEED = 0.005;
-const HUB_RADIUS_RATIO = 0.15;
-const MIN_HUB_RADIUS_PX = 30;
-const HUB_INNER_RATIO = 0.4;
-const HUB_STROKE_WIDTH = 5;
-const SEGMENT_STROKE_WIDTH = 2;
-const FONT_SIZE_DIVISOR = 14;
-const TEXT_PADDING_PX = 15;
-const POINTER_HALF_WIDTH_PX = 25;
-const POINTER_HEIGHT_PX = 35;
-const POINTER_OFFSET_PX = 5;
-const POINTER_STROKE_WIDTH = 3;
-const SHADOW_BLUR_PX = 10;
-const MIN_LABEL_SIZE_PX = 20;
-const LABEL_SIZE_RATIO = 0.5;
-const TOP_RESERVED_RATIO = 0.1;
-const MIN_TOP_RESERVED_PX = 40;
-const BOTTOM_PADDING_PX = 10;
-const SIDE_PADDING_PX = 20;
-const EASING_BASE = 2;
-const EASING_EXPONENT_FACTOR = -10;
-const MIN_EXTRA_ROTATIONS = 3;
-const EXTRA_ROTATION_MULTIPLIER = 1.5;
-const RANDOM_OFFSET_RANGE = 0.05;
-const TICK_MIN_PITCH = 0.8;
-const TICK_PITCH_RANGE = 0.4;
-const TICK_SPEED_THRESHOLD = 0.5;
-const PLACEHOLDER_TEXT = 'Please add a name';
-
-/**
- * Truncates text to fit within a maximum pixel width, appending "..." if needed.
- * @param {CanvasRenderingContext2D} canvasContext - The 2D canvas context for text measurement.
- * @param {string} text - The full text string to potentially truncate.
- * @param {number} maxWidth - Maximum allowed width in pixels.
- * @returns {string} The original or truncated text.
- */
-const truncateText = (canvasContext, text, maxWidth) => {
-  let width = canvasContext.measureText(text).width;
-  if (width <= maxWidth) return text;
-
-  let length = text.length;
-  while (width > maxWidth && length > 0) {
-    length--;
-    const truncated = text.substring(0, length) + '...';
-    width = canvasContext.measureText(truncated).width;
-    if (width <= maxWidth) return truncated;
-  }
-  return text[0] + '...';
-};
+const {
+  IDLE_ROTATION_SPEED,
+  HUB_RADIUS_RATIO,
+  MIN_HUB_RADIUS_PX,
+  TEXT_PADDING_PX,
+  SHADOW_BLUR_PX,
+  TOP_RESERVED_RATIO,
+  MIN_TOP_RESERVED_PX,
+  BOTTOM_PADDING_PX,
+  SIDE_PADDING_PX,
+  EASING_BASE,
+  EASING_EXPONENT_FACTOR,
+  MIN_EXTRA_ROTATIONS,
+  EXTRA_ROTATION_MULTIPLIER,
+  RANDOM_OFFSET_RANGE,
+  TICK_MIN_PITCH,
+  TICK_PITCH_RANGE,
+  TICK_SPEED_THRESHOLD,
+  PLACEHOLDER_TEXT,
+} = DRAWING_CONSTANTS;
 
 /**
  * Applies an exponential ease-out curve for smooth spin deceleration.
@@ -61,79 +37,6 @@ const truncateText = (canvasContext, text, maxWidth) => {
  */
 const applyEasing = (progress) => {
   return progress === 1 ? 1 : 1 - Math.pow(EASING_BASE, EASING_EXPONENT_FACTOR * progress);
-};
-
-/**
- * Draws the center hub (filled circle + inner dot + colored stroke).
- * @param {CanvasRenderingContext2D} canvasContext
- * @param {number} hubRadius
- * @param {number} devicePixelRatio
- * @param {string} activeColor
- */
-const drawHub = (canvasContext, hubRadius, devicePixelRatio, activeColor) => {
-  canvasContext.beginPath();
-  canvasContext.arc(0, 0, hubRadius, 0, 2 * Math.PI);
-  canvasContext.fillStyle = BRAND_COLORS.navy;
-  canvasContext.shadowColor = 'rgba(0,0,0,0.5)';
-  canvasContext.shadowBlur = SHADOW_BLUR_PX * devicePixelRatio;
-  canvasContext.fill();
-  canvasContext.strokeStyle = activeColor;
-  canvasContext.lineWidth = HUB_STROKE_WIDTH * devicePixelRatio;
-  canvasContext.stroke();
-  canvasContext.beginPath();
-  canvasContext.arc(0, 0, hubRadius * HUB_INNER_RATIO, 0, 2 * Math.PI);
-  canvasContext.fillStyle = '#fff';
-  canvasContext.fill();
-};
-
-/**
- * Draws the triangular pointer arrow at the top of the wheel.
- * @param {CanvasRenderingContext2D} canvasContext
- * @param {number} effectiveRadius
- * @param {number} devicePixelRatio
- * @param {string} activeColor
- */
-const drawPointer = (canvasContext, effectiveRadius, devicePixelRatio, activeColor) => {
-  canvasContext.beginPath();
-  const pointerSize = POINTER_HALF_WIDTH_PX * devicePixelRatio;
-  const arrowHeight = POINTER_HEIGHT_PX * devicePixelRatio;
-  canvasContext.moveTo(pointerSize, -effectiveRadius - (POINTER_OFFSET_PX * devicePixelRatio));
-  canvasContext.lineTo(-pointerSize, -effectiveRadius - (POINTER_OFFSET_PX * devicePixelRatio));
-  canvasContext.lineTo(0, -effectiveRadius + arrowHeight);
-  canvasContext.closePath();
-  canvasContext.fillStyle = activeColor;
-  canvasContext.shadowColor = 'rgba(0,0,0,0.4)';
-  canvasContext.shadowBlur = SHADOW_BLUR_PX * devicePixelRatio;
-  canvasContext.fill();
-  canvasContext.strokeStyle = '#fff';
-  canvasContext.lineWidth = POINTER_STROKE_WIDTH * devicePixelRatio;
-  canvasContext.stroke();
-};
-
-/**
- * Draws the active segment name above the wheel.
- * @param {CanvasRenderingContext2D} canvasContext
- * @param {string} activeName
- * @param {string} activeColor
- * @param {number} topReservedPixels
- * @param {number} devicePixelRatio
- */
-const drawActiveLabel = (canvasContext, activeName, activeColor, topReservedPixels, devicePixelRatio) => {
-  const indicatorY = topReservedPixels / 2;
-  canvasContext.translate(0, indicatorY);
-  canvasContext.textAlign = 'center';
-  canvasContext.textBaseline = 'middle';
-  const labelSize = Math.max(MIN_LABEL_SIZE_PX * devicePixelRatio, topReservedPixels * LABEL_SIZE_RATIO);
-  canvasContext.font = `800 ${labelSize}px sans-serif`;
-  canvasContext.shadowColor = activeColor;
-  canvasContext.shadowBlur = TEXT_PADDING_PX * devicePixelRatio;
-  canvasContext.fillStyle = activeColor;
-  canvasContext.fillText(activeName, 0, 0);
-  canvasContext.shadowBlur = 0;
-  canvasContext.lineWidth = POINTER_STROKE_WIDTH;
-  canvasContext.strokeStyle = '#0f172a';
-  canvasContext.strokeText(activeName, 0, 0);
-  canvasContext.fillText(activeName, 0, 0);
 };
 
 const WheelCanvas = ({ names, mustSpin, prizeNumber, onStopSpinning, onSpin, spinDuration = 5 }) => {
@@ -198,38 +101,21 @@ const WheelCanvas = ({ names, mustSpin, prizeNumber, onStopSpinning, onSpin, spi
     const offscreenContext = offscreen.getContext('2d');
 
     offscreenContext.clearRect(0, 0, offscreen.width, offscreen.height);
-    const numSegments = effectiveNames.length;
-    const segmentAngle = (2 * Math.PI) / numSegments;
+
+    const center = { x: centerX, y: centerY };
 
     effectiveNames.forEach((name, index) => {
-      offscreenContext.beginPath();
-      offscreenContext.moveTo(centerX, centerY);
-      offscreenContext.arc(centerX, centerY, effectiveRadius, index * segmentAngle, (index + 1) * segmentAngle);
-      offscreenContext.fillStyle = GAME_COLORS[index % GAME_COLORS.length];
-      offscreenContext.fill();
-      offscreenContext.strokeStyle = 'rgba(255,255,255,0.15)';
-      offscreenContext.lineWidth = SEGMENT_STROKE_WIDTH * devicePixelRatio;
-      offscreenContext.stroke();
-
-      offscreenContext.save();
-      offscreenContext.translate(centerX, centerY);
-      offscreenContext.rotate((index + 0.5) * segmentAngle);
-      offscreenContext.textAlign = 'left';
-      offscreenContext.textBaseline = 'middle';
-      offscreenContext.fillStyle = '#fff';
-
-      const fontSize = effectiveRadius / FONT_SIZE_DIVISOR;
-      offscreenContext.font = `800 ${fontSize}px sans-serif`;
-      offscreenContext.shadowColor = 'rgba(0,0,0,0.5)';
-      offscreenContext.shadowBlur = 4 * devicePixelRatio;
-
-      const textStart = hubRadius + (TEXT_PADDING_PX * devicePixelRatio);
-      const margin = TEXT_PADDING_PX * devicePixelRatio;
-      const maxTextWidth = effectiveRadius - textStart - margin;
-      const textToDisplay = truncateText(offscreenContext, name, maxTextWidth);
-
-      offscreenContext.fillText(textToDisplay, textStart, 0);
-      offscreenContext.restore();
+      drawSegment(
+        offscreenContext,
+        name,
+        index,
+        effectiveNames.length,
+        effectiveRadius,
+        hubRadius,
+        GAME_COLORS,
+        center,
+        devicePixelRatio
+      );
     });
 
     offscreenCanvasRef.current = offscreen;
@@ -251,9 +137,12 @@ const WheelCanvas = ({ names, mustSpin, prizeNumber, onStopSpinning, onSpin, spi
       canvasContext.drawImage(offscreenCanvasRef.current, 0, 0);
 
       if (hasFinishedSpinningRef.current && prizeNumber !== null && !isDemo) {
+        // Draw winner highlight
         canvasContext.translate(centerX, centerY);
+        const segmentAngle = (2 * Math.PI) / effectiveNames.length;
         const time = Date.now() / 200;
         const alpha = 0.5 + 0.5 * Math.sin(time);
+
         canvasContext.beginPath();
         canvasContext.moveTo(0, 0);
         canvasContext.arc(0, 0, effectiveRadius, prizeNumber * segmentAngle, (prizeNumber + 1) * segmentAngle);

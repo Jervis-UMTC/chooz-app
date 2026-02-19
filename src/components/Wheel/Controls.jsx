@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { initAudio, playUiClick } from '../../utils/sounds';
 import { ShuffleIcon, CloseIcon, PlusIcon, ClearAllIcon, ImportIcon, SaveIcon, HistoryIcon } from '../common/Icons';
 import { SaveModal, LoadModal } from './ListModals';
+import { parseImportText, saveNewList, deleteListFromStorage } from './ControlsUtils';
 import {
   ControlsContainer,
   NameList,
@@ -88,11 +89,10 @@ const Controls = ({ names, setNames, onSpin, isSpinning, spinDuration, setSpinDu
     }
   };
 
+
+
   const handleImport = () => {
-    const newNames = importText
-      .split('\n')
-      .map(name => name.trim())
-      .filter(name => name.length > 0);
+    const newNames = parseImportText(importText);
     if (newNames.length > 0) {
       setNames([...names, ...newNames]);
       setImportText('');
@@ -102,10 +102,8 @@ const Controls = ({ names, setNames, onSpin, isSpinning, spinDuration, setSpinDu
 
   const handleSaveList = () => {
     if (listName.trim() && names.length > 0) {
-      const newList = { name: listName.trim(), names: [...names], date: Date.now() };
-      const updated = [...savedLists.filter(list => list.name !== listName.trim()), newList];
+      const updated = saveNewList(savedLists, listName, names, STORAGE_KEY);
       setSavedLists(updated);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
       setListName('');
       setIsSaveModalVisible(false);
     }
@@ -117,9 +115,8 @@ const Controls = ({ names, setNames, onSpin, isSpinning, spinDuration, setSpinDu
   };
 
   const handleDeleteList = (listToDelete) => {
-    const updated = savedLists.filter(list => list.name !== listToDelete.name);
+    const updated = deleteListFromStorage(savedLists, listToDelete, STORAGE_KEY);
     setSavedLists(updated);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
   };
 
   return (

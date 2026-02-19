@@ -61,13 +61,12 @@ const DicePips = ({ value }) => {
  * @param {object} props
  * @param {function} props.onBack - Callback to navigate back to the home page.
  */
+import { generateDiceResults, calculateTotal, updateHistory } from './DiceUtils';
+
+// ... imports ...
+
 const DiceGame = ({ onBack }) => {
-  const [isRolling, setIsRolling] = useState(false);
-  const [results, setResults] = useState(null);
-  const [displayedResults, setDisplayedResults] = useState(null);
-  const [diceCount, setDiceCount] = useState(1);
-  const [history, setHistory] = useState([]);
-  const [isMuted, setIsMuted] = useState(getMuted());
+  // ... state ...
 
   const rollDice = useCallback(() => {
     if (isRolling) return;
@@ -75,7 +74,7 @@ const DiceGame = ({ onBack }) => {
     initAudio();
     playDiceRoll();
 
-    const newResults = Array.from({ length: diceCount }, () => Math.floor(Math.random() * 6) + 1);
+    const newResults = generateDiceResults(diceCount);
 
     setIsRolling(true);
     setResults(newResults);
@@ -84,11 +83,10 @@ const DiceGame = ({ onBack }) => {
     setTimeout(() => {
       setIsRolling(false);
       setDisplayedResults(newResults);
-      const total = newResults.reduce((sum, val) => sum + val, 0);
-      setHistory(previous => [
-        { values: newResults, total },
-        ...previous,
-      ].slice(0, MAX_HISTORY_LENGTH));
+
+      const total = calculateTotal(newResults);
+      setHistory(prev => updateHistory(prev, newResults, total, MAX_HISTORY_LENGTH));
+
       playWin();
     }, ROLL_DURATION_MS);
   }, [isRolling, diceCount]);
