@@ -185,7 +185,7 @@ const HomePage = ({ onNavigate }) => {
       desc: 'Roll virtual dice for games or random numbers.',
       icon: <DiceIcon />,
       accentColor: BRAND_COLORS.danger,
-      onClick: () => alert('Coming Soon!')
+      onClick: () => onNavigate('dice')
     }
   ];
 

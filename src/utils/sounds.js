@@ -173,6 +173,44 @@ export const playCoinFlip = () => {
   }
 };
 
+const DICE_CLICK_COUNT = 8;
+const DICE_CLICK_BASE_FREQ = 400;
+const DICE_CLICK_FREQ_RANGE = 200;
+const DICE_CLICK_GAIN = 0.06;
+const DICE_CLICK_DURATION = 0.03;
+const DICE_CLICK_INTERVAL = 0.06;
+
+/**
+ * Plays a dice roll sound — rapid staccato clicks simulating dice bouncing.
+ */
+export const playDiceRoll = () => {
+  if (isMuted) return;
+  try {
+    const context = getAudioContext();
+
+    for (let index = 0; index < DICE_CLICK_COUNT; index++) {
+      const oscillator = context.createOscillator();
+      const gainNode = context.createGain();
+
+      oscillator.connect(gainNode);
+      gainNode.connect(context.destination);
+
+      const randomPitch = DICE_CLICK_BASE_FREQ + Math.random() * DICE_CLICK_FREQ_RANGE;
+      oscillator.frequency.value = randomPitch;
+      oscillator.type = 'square';
+
+      const startTime = context.currentTime + (index * DICE_CLICK_INTERVAL) + (Math.random() * 0.02);
+      gainNode.gain.setValueAtTime(DICE_CLICK_GAIN, startTime);
+      gainNode.gain.exponentialRampToValueAtTime(TICK_FADE_TARGET, startTime + DICE_CLICK_DURATION);
+
+      oscillator.start(startTime);
+      oscillator.stop(startTime + DICE_CLICK_DURATION);
+    }
+  } catch {
+    // Audio not supported
+  }
+};
+
 /**
  * Resumes the AudioContext if it was suspended (e.g. by autoplay policy).
  * Should be called on a user gesture before the first sound is needed.

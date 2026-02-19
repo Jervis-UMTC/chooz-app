@@ -2,6 +2,7 @@ import styled from 'styled-components';
 import { motion } from 'framer-motion';
 import { BRAND_COLORS } from '../../utils/colors';
 import { Button } from '../common/Button';
+import { Input } from '../common/Input';
 
 export const ControlsContainer = styled(motion.div)`
   background-color: rgba(15, 23, 42, 0.85);

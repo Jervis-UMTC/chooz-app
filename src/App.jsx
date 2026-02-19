@@ -3,6 +3,7 @@ import WheelGame from './components/Wheel/WheelGame'
 import LandingPage from './components/LandingPage'
 import HomePage from './components/Home/HomePage'
 import CoinGame from './components/Coin/CoinGame'
+import DiceGame from './components/Dice/DiceGame'
 import './index.css'
 import ChoozTextLogo from './assets/chooz-text-logo.svg'
 import styled from 'styled-components';
@@ -99,7 +100,7 @@ function App() {
 
   return (
     <div className="app-container">
-      {view !== 'landing' && view !== 'wheel' && view !== 'coin' && (
+      {view !== 'landing' && view !== 'wheel' && view !== 'coin' && view !== 'dice' && (
         <HeaderContainer>
           <HeaderLeft>
             <BackButton onClick={() => navigate('home')}>
@@ -144,6 +145,9 @@ function App() {
           )}
           {view === 'coin' && (
             <CoinGame onBack={() => navigate('home')} />
+          )}
+          {view === 'dice' && (
+            <DiceGame onBack={() => navigate('home')} />
           )}
         </PageTransition>
       </AnimatePresence>
