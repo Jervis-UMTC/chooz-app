@@ -9,8 +9,6 @@ import ChoozTextLogo from './assets/chooz-text-logo.svg'
 import styled from 'styled-components';
 import { AnimatePresence, motion } from 'framer-motion';
 
-import { ArrowLeftIcon } from './components/common/Icons';
-
 const STORAGE_KEY_NAMES = 'chooz_names';
 const STORAGE_KEY_HISTORY = 'chooz_history';
 const MAX_HISTORY_SIZE = 20;
@@ -24,35 +22,9 @@ const HeaderContainer = styled.header`
   padding: 20px 40px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   position: relative;
   z-index: 50;
-`;
-
-const HeaderLeft = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 20px;
-`;
-
-const BackButton = styled.button`
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: white;
-  padding: 8px 16px;
-  border-radius: 50px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  transition: all 0.2s;
-  font-weight: 500;
-  backdrop-filter: blur(4px);
-
-  &:hover {
-    background: rgba(255, 255, 255, 0.2);
-    transform: translateX(-2px);
-  }
 `;
 
 const PageTransition = styled(motion.div)`
@@ -102,18 +74,12 @@ function App() {
     <div className="app-container">
       {view !== 'landing' && view !== 'wheel' && view !== 'coin' && view !== 'dice' && (
         <HeaderContainer>
-          <HeaderLeft>
-            <BackButton onClick={() => navigate('home')}>
-              <ArrowLeftIcon size={16} /> Back
-            </BackButton>
-            <img
-              src={ChoozTextLogo}
-              alt="Chooz"
-              style={{ height: '40px', cursor: 'pointer' }}
-              onClick={() => navigate('landing')}
-            />
-          </HeaderLeft>
-          <div />
+          <img
+            src={ChoozTextLogo}
+            alt="Chooz"
+            style={{ height: '40px', cursor: 'pointer' }}
+            onClick={() => navigate('landing')}
+          />
         </HeaderContainer>
       )}
 
