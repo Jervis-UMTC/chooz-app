@@ -2,8 +2,6 @@ import { BRAND_COLORS } from '../../utils/colors';
 import { DRAWING_CONSTANTS } from './WheelConstants';
 
 const {
-  HUB_RADIUS_RATIO,
-  MIN_HUB_RADIUS_PX,
   HUB_INNER_RATIO,
   HUB_STROKE_WIDTH,
   POINTER_HALF_WIDTH_PX,
@@ -17,6 +15,16 @@ const {
   SEGMENT_STROKE_WIDTH,
   FONT_SIZE_DIVISOR,
 } = DRAWING_CONSTANTS;
+
+/**
+ * Resets all shadow properties on a canvas context.
+ */
+const resetShadow = (ctx) => {
+  ctx.shadowColor = 'transparent';
+  ctx.shadowBlur = 0;
+  ctx.shadowOffsetX = 0;
+  ctx.shadowOffsetY = 0;
+};
 
 /**
  * Truncates text to fit within a maximum pixel width.
@@ -42,6 +50,7 @@ export const drawHub = (ctx, hubRadius, pixelRatio, activeColor) => {
   ctx.shadowColor = 'rgba(0,0,0,0.5)';
   ctx.shadowBlur = SHADOW_BLUR_PX * pixelRatio;
   ctx.fill();
+  resetShadow(ctx);
 
   ctx.strokeStyle = activeColor;
   ctx.lineWidth = HUB_STROKE_WIDTH * pixelRatio;
@@ -67,6 +76,7 @@ export const drawPointer = (ctx, radius, pixelRatio, activeColor) => {
   ctx.shadowColor = 'rgba(0,0,0,0.4)';
   ctx.shadowBlur = SHADOW_BLUR_PX * pixelRatio;
   ctx.fill();
+  resetShadow(ctx);
 
   ctx.strokeStyle = '#fff';
   ctx.lineWidth = POINTER_STROKE_WIDTH * pixelRatio;
@@ -86,8 +96,8 @@ export const drawActiveLabel = (ctx, name, color, topSpace, pixelRatio) => {
   ctx.shadowBlur = TEXT_PADDING_PX * pixelRatio;
   ctx.fillStyle = color;
   ctx.fillText(name, 0, 0);
+  resetShadow(ctx);
 
-  ctx.shadowBlur = 0;
   ctx.lineWidth = POINTER_STROKE_WIDTH;
   ctx.strokeStyle = '#0f172a';
   ctx.strokeText(name, 0, 0);
@@ -127,5 +137,6 @@ export const drawSegment = (ctx, name, index, total, radius, hubRadius, colors, 
   const textToDisplay = truncateText(ctx, name, maxTextWidth);
 
   ctx.fillText(textToDisplay, textStart, 0);
+  resetShadow(ctx);
   ctx.restore();
 };

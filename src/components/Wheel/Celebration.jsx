@@ -4,7 +4,7 @@ import { BRAND_COLORS } from '../../utils/colors';
 
 const fall = keyframes`
   0% {
-    transform: translateY(-100vh) rotate(0deg);
+    transform: translateY(-10vh) rotate(0deg);
     opacity: 1;
   }
   100% {
@@ -21,7 +21,8 @@ const CelebrationContainer = styled.div`
   height: 100%;
   pointer-events: none;
   overflow: hidden;
-  z-index: 100;
+  z-index: 50;
+  contain: strict;
 `;
 
 const Particle = styled.div`
@@ -34,7 +35,8 @@ const Particle = styled.div`
   border-radius: ${props => props.$shape === 'circle' ? '50%' : '2px'};
   animation: ${fall} ${props => props.$duration}s ease-in forwards;
   animation-delay: ${props => props.$delay}s;
-  will-change: transform;
+  will-change: transform, opacity;
+  contain: layout style paint;
 `;
 
 const COLORS = [
@@ -62,7 +64,7 @@ const generateParticles = (count) =>
     shape: Math.random() > 0.5 ? 'circle' : 'square'
   }));
 
-const Celebration = ({ particleCount = 30 }) => {
+const Celebration = ({ particleCount = 20 }) => {
   const [particles] = useState(() => generateParticles(particleCount));
 
   return (

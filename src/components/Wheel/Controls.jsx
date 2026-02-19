@@ -92,9 +92,14 @@ const Controls = ({ names, setNames, onSpin, isSpinning, spinDuration, setSpinDu
 
 
   const handleImport = () => {
-    const newNames = parseImportText(importText);
-    if (newNames.length > 0) {
-      setNames([...names, ...newNames]);
+    const parsedNames = parseImportText(importText);
+    const uniqueNewNames = parsedNames.filter(
+      (name, index, arr) =>
+        !names.some(existing => existing.toLowerCase() === name.toLowerCase()) &&
+        arr.findIndex(n => n.toLowerCase() === name.toLowerCase()) === index
+    );
+    if (uniqueNewNames.length > 0) {
+      setNames([...names, ...uniqueNewNames]);
       setImportText('');
       setIsImportVisible(false);
     }
@@ -191,6 +196,7 @@ const Controls = ({ names, setNames, onSpin, isSpinning, spinDuration, setSpinDu
         </AnimatePresence>
 
         {/* Name List */}
+        <Label>{names.length} name{names.length !== 1 ? 's' : ''}</Label>
         <NameList role="list" aria-label="Names list">
           {names.length === 0 ? (
             <EmptyState>
@@ -246,6 +252,7 @@ const Controls = ({ names, setNames, onSpin, isSpinning, spinDuration, setSpinDu
         >
           {isSpinning ? 'Spinning...' : 'SPIN'}
         </SpinButton>
+        <Label style={{ textAlign: 'center', marginTop: 4 }}>Press Space to spin · Esc to close</Label>
 
         {/* History */}
         {history.length > 0 && (

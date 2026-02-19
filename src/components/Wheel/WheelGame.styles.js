@@ -149,6 +149,7 @@ export const WinnerModal = styled(motion.div)`
   border: 1px solid rgba(254, 221, 40, 0.3);
   text-align: center;
   z-index: 100;
+  position: relative;
   box-shadow: 0 0 60px rgba(254, 221, 40, 0.15), 0 20px 40px -10px rgba(0,0,0,0.5);
   max-width: 90%;
   width: 450px;

@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState } from 'react';
+import { useRef, useEffect, useState, memo } from 'react';
 import { GAME_COLORS } from '../../utils/colors';
 import { playTick, playWin, initAudio } from '../../utils/sounds';
 import { DRAWING_CONSTANTS } from './WheelConstants';
@@ -13,7 +13,6 @@ const {
   IDLE_ROTATION_SPEED,
   HUB_RADIUS_RATIO,
   MIN_HUB_RADIUS_PX,
-  TEXT_PADDING_PX,
   SHADOW_BLUR_PX,
   TOP_RESERVED_RATIO,
   MIN_TOP_RESERVED_PX,
@@ -29,6 +28,9 @@ const {
   TICK_SPEED_THRESHOLD,
   PLACEHOLDER_TEXT,
 } = DRAWING_CONSTANTS;
+
+const TWO_PI = 2 * Math.PI;
+const THREE_HALF_PI = 3 * Math.PI / 2;
 
 /**
  * Applies an exponential ease-out curve for smooth spin deceleration.
@@ -50,22 +52,30 @@ const WheelCanvas = ({ names, mustSpin, prizeNumber, onStopSpinning, onSpin, spi
   const isSpinningRef = useRef(false);
   const hasFinishedSpinningRef = useRef(false);
   const speedRef = useRef(0);
-  const geometryRef = useRef({ centerX: 0, centerY: 0, hubRadius: 0, devicePixelRatio: 1 });
+  const geometryRef = useRef({ centerX: 0, centerY: 0, hubRadius: 0, effectiveRadius: 0, devicePixelRatio: 1, topReservedPixels: 0 });
   const lastSegmentRef = useRef(-1);
+  const lastActiveColorRef = useRef(null);
 
   const mustSpinRef = useRef(mustSpin);
   useEffect(() => {
     mustSpinRef.current = mustSpin;
   }, [mustSpin]);
 
+  const prizeNumberRef = useRef(prizeNumber);
+  useEffect(() => {
+    prizeNumberRef.current = prizeNumber;
+  }, [prizeNumber]);
+
   const [size, setSize] = useState({ width: 0, height: 0 });
   const offscreenCanvasRef = useRef(null);
+  const hubCanvasRef = useRef(null);
+  const pointerCanvasRef = useRef(null);
 
   useEffect(() => {
     if (!containerRef.current) return;
 
     const resizeObserver = new ResizeObserver((entries) => {
-      for (let entry of entries) {
+      for (const entry of entries) {
         const { width, height } = entry.contentRect;
         setSize({ width, height });
       }
@@ -75,6 +85,7 @@ const WheelCanvas = ({ names, mustSpin, prizeNumber, onStopSpinning, onSpin, spi
     return () => resizeObserver.disconnect();
   }, []);
 
+  // Pre-render segments to offscreen canvas (only when names or size change)
   useEffect(() => {
     if (size.width === 0 || size.height === 0) return;
 
@@ -93,100 +104,130 @@ const WheelCanvas = ({ names, mustSpin, prizeNumber, onStopSpinning, onSpin, spi
     const centerY = topReservedPixels + effectiveRadius;
     const hubRadius = Math.max(MIN_HUB_RADIUS_PX * devicePixelRatio, effectiveRadius * HUB_RADIUS_RATIO);
 
-    geometryRef.current = { centerX, centerY, hubRadius, devicePixelRatio };
+    geometryRef.current = { centerX, centerY, hubRadius, effectiveRadius, devicePixelRatio, topReservedPixels };
 
+    // Pre-render wheel segments
     const offscreen = document.createElement('canvas');
     offscreen.width = canvas.width;
     offscreen.height = canvas.height;
-    const offscreenContext = offscreen.getContext('2d');
-
-    offscreenContext.clearRect(0, 0, offscreen.width, offscreen.height);
+    const offCtx = offscreen.getContext('2d');
+    offCtx.clearRect(0, 0, offscreen.width, offscreen.height);
 
     const center = { x: centerX, y: centerY };
-
     effectiveNames.forEach((name, index) => {
-      drawSegment(
-        offscreenContext,
-        name,
-        index,
-        effectiveNames.length,
-        effectiveRadius,
-        hubRadius,
-        GAME_COLORS,
-        center,
-        devicePixelRatio
-      );
+      drawSegment(offCtx, name, index, effectiveNames.length, effectiveRadius, hubRadius, GAME_COLORS, center, devicePixelRatio);
     });
-
     offscreenCanvasRef.current = offscreen;
-    const canvasContext = canvas.getContext('2d');
 
-    const drawFrame = () => {
+    // Pre-render hub and pointer for every possible color to avoid per-frame shadow cost
+    // Instead we'll cache the last-used color and only rebuild when it changes
+    hubCanvasRef.current = null;
+    pointerCanvasRef.current = null;
+    lastActiveColorRef.current = null;
+
+  }, [names, size, effectiveNames, isDemo]);
+
+  // Pre-render hub for a given color
+  const getHubCanvas = (activeColor) => {
+    if (lastActiveColorRef.current === activeColor && hubCanvasRef.current) {
+      return hubCanvasRef.current;
+    }
+    const { hubRadius, effectiveRadius, devicePixelRatio } = geometryRef.current;
+    const hubSize = (hubRadius + SHADOW_BLUR_PX * devicePixelRatio + 10) * 2;
+
+    const hubCanvas = document.createElement('canvas');
+    hubCanvas.width = hubSize;
+    hubCanvas.height = hubSize;
+    const hubCtx = hubCanvas.getContext('2d');
+    hubCtx.translate(hubSize / 2, hubSize / 2);
+    drawHub(hubCtx, hubRadius, devicePixelRatio, activeColor);
+    hubCanvasRef.current = hubCanvas;
+
+    const pointerCanvas = document.createElement('canvas');
+    const pointerWidth = 100 * devicePixelRatio;
+    const pointerHeight = (effectiveRadius + 80) * devicePixelRatio;
+    pointerCanvas.width = pointerWidth;
+    pointerCanvas.height = pointerHeight;
+    const ptrCtx = pointerCanvas.getContext('2d');
+    ptrCtx.translate(pointerWidth / 2, pointerHeight);
+    drawPointer(ptrCtx, effectiveRadius, devicePixelRatio, activeColor);
+    pointerCanvasRef.current = pointerCanvas;
+
+    lastActiveColorRef.current = activeColor;
+    return hubCanvas;
+  };
+
+  // Main render loop
+  useEffect(() => {
+    if (size.width === 0 || size.height === 0) return;
+    if (!offscreenCanvasRef.current) return;
+
+    const canvas = canvasRef.current;
+    const canvasCtx = canvas.getContext('2d');
+    const segmentAngle = TWO_PI / effectiveNames.length;
+
+    const drawFrame = (timestamp) => {
       if (!offscreenCanvasRef.current) return;
+      const { centerX, centerY, effectiveRadius, hubRadius, devicePixelRatio, topReservedPixels } = geometryRef.current;
 
-      canvasContext.clearRect(0, 0, canvas.width, canvas.height);
+      canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
 
+      // Idle rotation
       if (!isSpinningRef.current && !hasFinishedSpinningRef.current && !mustSpinRef.current) {
         rotationRef.current += IDLE_ROTATION_SPEED;
       }
 
-      canvasContext.save();
-      canvasContext.translate(centerX, centerY);
-      canvasContext.rotate(rotationRef.current);
-      canvasContext.translate(-centerX, -centerY);
-      canvasContext.drawImage(offscreenCanvasRef.current, 0, 0);
+      // Draw rotated wheel segments
+      canvasCtx.save();
+      canvasCtx.translate(centerX, centerY);
+      canvasCtx.rotate(rotationRef.current);
+      canvasCtx.translate(-centerX, -centerY);
+      canvasCtx.drawImage(offscreenCanvasRef.current, 0, 0);
 
-      if (hasFinishedSpinningRef.current && prizeNumber !== null && !isDemo) {
-        // Draw winner highlight
-        canvasContext.translate(centerX, centerY);
-        const segmentAngle = (2 * Math.PI) / effectiveNames.length;
-        const time = Date.now() / 200;
-        const alpha = 0.5 + 0.5 * Math.sin(time);
-
-        canvasContext.beginPath();
-        canvasContext.moveTo(0, 0);
-        canvasContext.arc(0, 0, effectiveRadius, prizeNumber * segmentAngle, (prizeNumber + 1) * segmentAngle);
-        canvasContext.fillStyle = `rgba(255, 255, 255, ${alpha * 0.3})`;
-        canvasContext.fill();
-        canvasContext.translate(-centerX, -centerY);
+      // Winner highlight overlay
+      if (hasFinishedSpinningRef.current && prizeNumberRef.current !== null && !isDemo) {
+        canvasCtx.translate(centerX, centerY);
+        const alpha = 0.5 + 0.5 * Math.sin(timestamp / 200);
+        canvasCtx.beginPath();
+        canvasCtx.moveTo(0, 0);
+        canvasCtx.arc(0, 0, effectiveRadius, prizeNumberRef.current * segmentAngle, (prizeNumberRef.current + 1) * segmentAngle);
+        canvasCtx.fillStyle = `rgba(255, 255, 255, ${alpha * 0.3})`;
+        canvasCtx.fill();
+        canvasCtx.translate(-centerX, -centerY);
       }
 
-      canvasContext.restore();
+      canvasCtx.restore();
 
+      // Calculate active segment
       const currentRotation = rotationRef.current;
-      const activeSegmentAngle = (2 * Math.PI) / effectiveNames.length;
+      let normalizedRotation = currentRotation % TWO_PI;
+      if (normalizedRotation < 0) normalizedRotation += TWO_PI;
 
-      let normalizedRotation = currentRotation % (2 * Math.PI);
-      if (normalizedRotation < 0) normalizedRotation += 2 * Math.PI;
+      let activeAngle = THREE_HALF_PI - normalizedRotation;
+      while (activeAngle < 0) activeAngle += TWO_PI;
+      activeAngle = activeAngle % TWO_PI;
 
-      let activeAngle = (3 * Math.PI / 2 - normalizedRotation);
-      while (activeAngle < 0) activeAngle += 2 * Math.PI;
-      activeAngle = activeAngle % (2 * Math.PI);
-
-      const activeIndex = Math.floor(activeAngle / activeSegmentAngle) % effectiveNames.length;
+      const activeIndex = Math.floor(activeAngle / segmentAngle) % effectiveNames.length;
       const activeColor = GAME_COLORS[activeIndex % GAME_COLORS.length];
       const activeName = effectiveNames[activeIndex];
 
+      // Tick sound on segment change
       if (isSpinningRef.current && lastSegmentRef.current !== -1 && lastSegmentRef.current !== activeIndex) {
         const tickProgress = speedRef.current > 0 ? Math.min(1, speedRef.current / TICK_SPEED_THRESHOLD) : 0.5;
         playTick(TICK_MIN_PITCH + tickProgress * TICK_PITCH_RANGE);
       }
       lastSegmentRef.current = activeIndex;
 
-      canvasContext.save();
-      canvasContext.translate(centerX, centerY);
-      drawHub(canvasContext, hubRadius, devicePixelRatio, activeColor);
-      canvasContext.restore();
+      // Draw hub and pointer from cached offscreen canvases
+      const hubCanvas = getHubCanvas(activeColor);
+      canvasCtx.drawImage(hubCanvas, centerX - hubCanvas.width / 2, centerY - hubCanvas.height / 2);
+      canvasCtx.drawImage(pointerCanvasRef.current, centerX - pointerCanvasRef.current.width / 2, centerY - pointerCanvasRef.current.height);
 
-      canvasContext.save();
-      canvasContext.translate(centerX, centerY);
-      drawPointer(canvasContext, effectiveRadius, devicePixelRatio, activeColor);
-      canvasContext.restore();
-
-      canvasContext.save();
-      canvasContext.translate(centerX, 0);
-      drawActiveLabel(canvasContext, activeName, activeColor, topReservedPixels, devicePixelRatio);
-      canvasContext.restore();
+      // Active label (lightweight — no shadow caching needed, text changes every segment)
+      canvasCtx.save();
+      canvasCtx.translate(centerX, 0);
+      drawActiveLabel(canvasCtx, activeName, activeColor, topReservedPixels, devicePixelRatio);
+      canvasCtx.restore();
     };
 
     const animate = (timestamp) => {
@@ -194,12 +235,12 @@ const WheelCanvas = ({ names, mustSpin, prizeNumber, onStopSpinning, onSpin, spi
       animationFrameId.current = requestAnimationFrame(animate);
     };
 
-    animate(0);
+    animationFrameId.current = requestAnimationFrame(animate);
 
     return () => {
       if (animationFrameId.current) cancelAnimationFrame(animationFrameId.current);
-    }
-  }, [names, prizeNumber, size, mustSpin, effectiveNames, isDemo]);
+    };
+  }, [size, effectiveNames, isDemo]);
 
   const handleCanvasClick = (event) => {
     if (isDemo) return;
@@ -237,30 +278,30 @@ const WheelCanvas = ({ names, mustSpin, prizeNumber, onStopSpinning, onSpin, spi
       const initialRotation = rotationRef.current;
 
       const numSegments = effectiveNames.length;
-      const segmentAngle = (2 * Math.PI) / numSegments;
+      const segAngle = TWO_PI / numSegments;
       const randomOffset = (Math.random() - 0.5) * RANDOM_OFFSET_RANGE;
-      const segmentCenter = (prizeNumber + 0.5) * segmentAngle;
-      const targetAngleRaw = (3 * Math.PI / 2) - segmentCenter + randomOffset;
+      const segmentCenter = (prizeNumber + 0.5) * segAngle;
+      const targetAngleRaw = THREE_HALF_PI - segmentCenter + randomOffset;
 
       let finalTarget = targetAngleRaw;
       while (finalTarget < initialRotation) {
-        finalTarget += 2 * Math.PI;
+        finalTarget += TWO_PI;
       }
       const extraRotations = Math.max(MIN_EXTRA_ROTATIONS, Math.floor(spinDuration * EXTRA_ROTATION_MULTIPLIER));
-      finalTarget += (extraRotations * 2 * Math.PI);
+      finalTarget += (extraRotations * TWO_PI);
 
-      const spinParams = {
-        startRotation: initialRotation,
-        target: finalTarget
-      };
+      const startRotation = initialRotation;
+      const totalDelta = finalTarget - startRotation;
+      let previousRotation = initialRotation;
 
       const step = (timestamp) => {
         if (!start) start = timestamp;
 
         if (!mustSpinRef.current) {
-          rotationRef.current = spinParams.target;
+          rotationRef.current = finalTarget;
           isSpinningRef.current = false;
           hasFinishedSpinningRef.current = true;
+          speedRef.current = 0;
           onStopSpinning();
           return;
         }
@@ -269,12 +310,16 @@ const WheelCanvas = ({ names, mustSpin, prizeNumber, onStopSpinning, onSpin, spi
 
         if (progress < 1) {
           const ease = applyEasing(progress);
-          rotationRef.current = spinParams.startRotation + (spinParams.target - spinParams.startRotation) * ease;
+          const newRotation = startRotation + totalDelta * ease;
+          speedRef.current = Math.abs(newRotation - previousRotation);
+          previousRotation = newRotation;
+          rotationRef.current = newRotation;
           requestAnimationFrame(step);
         } else {
-          rotationRef.current = spinParams.target;
+          rotationRef.current = finalTarget;
           isSpinningRef.current = false;
           hasFinishedSpinningRef.current = true;
+          speedRef.current = 0;
           playWin();
           onStopSpinning();
         }
@@ -297,4 +342,4 @@ const WheelCanvas = ({ names, mustSpin, prizeNumber, onStopSpinning, onSpin, spi
   );
 };
 
-export default WheelCanvas;
+export default memo(WheelCanvas);

@@ -4,7 +4,7 @@ import Controls from './Controls';
 import Celebration from './Celebration';
 import { AnimatePresence } from 'framer-motion';
 import { initAudio, setMuted, getMuted } from '../../utils/sounds';
-import { ArrowLeftIcon, StopIcon, TrashIcon, VolumeIcon, MuteIcon } from '../common/Icons';
+import { ArrowLeftIcon, StopIcon, TrashIcon, VolumeIcon, MuteIcon, RefreshIcon, CloseIcon } from '../common/Icons';
 import {
   GameContainer,
   FloatingNav,
@@ -66,7 +66,7 @@ const WheelGame = ({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [mustSpin, winner, names.length]);
+  }, [mustSpin, winner, names.length, handleSpinClick]);
 
   const handleStopSpinning = () => {
     setMustSpin(false);
@@ -80,11 +80,17 @@ const WheelGame = ({
 
   const handleRemoveWinner = useCallback(() => {
     if (winner) {
-      const newNames = names.filter(name => name !== winner);
+      const indexToRemove = names.indexOf(winner);
+      const newNames = names.filter((_, index) => index !== indexToRemove);
       setNames(newNames);
       setWinner(null);
     }
   }, [winner, names, setNames, setWinner]);
+
+  const handleSpinAgain = useCallback(() => {
+    setWinner(null);
+    setTimeout(handleSpinClick, 100);
+  }, [setWinner, handleSpinClick]);
 
   return (
     <PageContainer>
@@ -111,7 +117,7 @@ const WheelGame = ({
         </MuteButton>
       </ControlButtons>
 
-      {winner && <Celebration particleCount={40} />}
+      {winner && <Celebration key={winner + Date.now()} particleCount={20} />}
 
       <GameContainer>
         <WheelWrapper>
@@ -166,6 +172,22 @@ const WheelGame = ({
               transition={{ duration: 0.4, ease: "easeOut" }}
               onClick={(event) => event.stopPropagation()}
             >
+              <button
+                onClick={() => setWinner(null)}
+                style={{
+                  position: 'absolute', top: 12, right: 12,
+                  background: 'rgba(255,255,255,0.1)', border: 'none',
+                  borderRadius: '50%', width: 32, height: 32,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  cursor: 'pointer', color: 'rgba(255,255,255,0.6)',
+                  transition: 'background 0.2s, color 0.2s'
+                }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.2)'; e.currentTarget.style.color = '#fff'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.1)'; e.currentTarget.style.color = 'rgba(255,255,255,0.6)'; }}
+                aria-label="Close"
+              >
+                <CloseIcon size={14} />
+              </button>
               <WinnerTitle>We have a winner!</WinnerTitle>
               <WinnerName
                 initial={{ scale: 0.9 }}
@@ -176,8 +198,8 @@ const WheelGame = ({
               </WinnerName>
 
               <ButtonGroup>
-                <ActionButton onClick={() => setWinner(null)}>
-                  <ArrowLeftIcon size={14} /> Back
+                <ActionButton onClick={handleSpinAgain}>
+                  <RefreshIcon size={14} /> Spin Again
                 </ActionButton>
                 <RemoveButton onClick={handleRemoveWinner}>
                   <TrashIcon size={14} /> Remove
