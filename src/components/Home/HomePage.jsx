@@ -1,8 +1,10 @@
 import styled from 'styled-components';
 import { motion } from 'framer-motion';
 import { BRAND_COLORS } from '../../utils/colors';
-import { ArrowRightIcon, CoinIcon, DiceIcon } from '../common/Icons';
+import { ArrowRightIcon } from '../common/Icons';
 import WheelLogo from '../../assets/wheel-of-names-logo.png';
+import CoinLogo from '../../assets/coin-flip-logo.png';
+import DiceLogo from '../../assets/dice-game-logo.png';
 
 const HomeContainer = styled.div`
   padding: 60px 20px;
@@ -175,7 +177,7 @@ const HomePage = ({ onNavigate }) => {
       id: 'coin',
       title: 'Coin Flip',
       desc: 'A quick heads or tails for those 50/50 decisions.',
-      icon: <CoinIcon />,
+      icon: <img src={CoinLogo} alt="Coin Flip" />,
       accentColor: BRAND_COLORS.yellow,
       onClick: () => onNavigate('coin')
     },
@@ -183,7 +185,7 @@ const HomePage = ({ onNavigate }) => {
       id: 'dice',
       title: 'Dice Roll',
       desc: 'Roll virtual dice for games or random numbers.',
-      icon: <DiceIcon />,
+      icon: <img src={DiceLogo} alt="Dice Roll" />,
       accentColor: BRAND_COLORS.danger,
       onClick: () => onNavigate('dice')
     }
