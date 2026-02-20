@@ -5,6 +5,7 @@ import { ArrowRightIcon } from '../common/Icons';
 import WheelLogo from '../../assets/wheel-of-names-logo.png';
 import CoinLogo from '../../assets/coin-flip-logo.png';
 import DiceLogo from '../../assets/dice-game-logo.png';
+import MarbleLogo from '../../assets/marble-drop-icon.png';
 
 const HomeContainer = styled.div`
   padding: 60px 20px;
@@ -193,7 +194,7 @@ const HomePage = ({ onNavigate }) => {
       id: 'marble',
       title: 'Marble Race',
       desc: 'Watch marbles race through obstacles to the finish line.',
-      icon: null,
+      icon: <img src={MarbleLogo} alt="Marble Race" />,
       accentColor: '#22c55e',
       onClick: () => onNavigate('marble')
     }
