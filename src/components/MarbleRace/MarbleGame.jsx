@@ -34,7 +34,7 @@ import {
  * @param {function} props.onBack - Navigate back to home.
  */
 const MarbleGame = ({ names, setNames, onBack }) => {
-  const [racing, setRacing] = useState(false);
+  const [isRacing, setIsRacing] = useState(false);
   const [mode, setMode] = useState('first');
   const [results, setResults] = useState(null);
   const [isMuted, setIsMuted] = useState(getMuted());
@@ -49,11 +49,11 @@ const MarbleGame = ({ names, setNames, onBack }) => {
     if (names.length < 2) return;
     initAudio();
     setResults(null);
-    setRacing(true);
+    setIsRacing(true);
   }, [names.length]);
 
   const handleRaceFinish = useCallback((finishers) => {
-    setRacing(false);
+    setIsRacing(false);
     setResults(finishers);
   }, []);
 
@@ -65,7 +65,7 @@ const MarbleGame = ({ names, setNames, onBack }) => {
   useEffect(() => {
     const handleKeyDown = (event) => {
       if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA') return;
-      if (event.code === 'Space' && !racing && !results && names.length > 1) {
+      if (event.code === 'Space' && !isRacing && !results && names.length > 1) {
         event.preventDefault();
         handleStartRace();
       }
@@ -75,7 +75,7 @@ const MarbleGame = ({ names, setNames, onBack }) => {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [racing, results, names.length, handleStartRace]);
+  }, [isRacing, results, names.length, handleStartRace]);
 
   const winner = results && results.length > 0 ? results[0] : null;
 
@@ -99,18 +99,18 @@ const MarbleGame = ({ names, setNames, onBack }) => {
         <CanvasWrapper>
           <MarbleCanvas
             names={names}
-            racing={racing}
+            racing={isRacing}
             onRaceFinish={handleRaceFinish}
             mode={mode}
           />
         </CanvasWrapper>
 
-        {!racing && (
+        {!isRacing && (
           <MarbleControls
             names={names}
             setNames={setNames}
             onRace={handleStartRace}
-            isRacing={racing}
+            isRacing={isRacing}
             mode={mode}
             setMode={setMode}
           />

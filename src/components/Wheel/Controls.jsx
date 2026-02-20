@@ -49,6 +49,11 @@ const Controls = ({ names, setNames, onSpin, isSpinning, spinDuration, setSpinDu
     playUiClick();
     const trimmed = newName.trim();
     if (trimmed) {
+      if (names.length >= 50) {
+        setDuplicateWarning(`Maximum limit of 50 names reached`);
+        setTimeout(() => setDuplicateWarning(''), DUPLICATE_WARNING_TIMEOUT_MS);
+        return;
+      }
       if (names.some(name => name.toLowerCase() === trimmed.toLowerCase())) {
         setDuplicateWarning(`"${trimmed}" is already in the list`);
         setTimeout(() => setDuplicateWarning(''), DUPLICATE_WARNING_TIMEOUT_MS);
@@ -98,8 +103,22 @@ const Controls = ({ names, setNames, onSpin, isSpinning, spinDuration, setSpinDu
         !names.some(existing => existing.toLowerCase() === name.toLowerCase()) &&
         arr.findIndex(n => n.toLowerCase() === name.toLowerCase()) === index
     );
+
     if (uniqueNewNames.length > 0) {
-      setNames([...names, ...uniqueNewNames]);
+      const availableSlots = 50 - names.length;
+      if (availableSlots <= 0) {
+        setDuplicateWarning(`Maximum limit of 50 names reached`);
+        setTimeout(() => setDuplicateWarning(''), DUPLICATE_WARNING_TIMEOUT_MS);
+        return;
+      }
+
+      const namesToAdd = uniqueNewNames.slice(0, availableSlots);
+      if (uniqueNewNames.length > availableSlots) {
+        setDuplicateWarning(`List capped at 50 names maximum`);
+        setTimeout(() => setDuplicateWarning(''), DUPLICATE_WARNING_TIMEOUT_MS);
+      }
+
+      setNames([...names, ...namesToAdd]);
       setImportText('');
       setIsImportVisible(false);
     }
@@ -137,10 +156,11 @@ const Controls = ({ names, setNames, onSpin, isSpinning, spinDuration, setSpinDu
             value={newName}
             onChange={(event) => setNewName(event.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Add a name..."
+            placeholder={names.length >= 50 ? "50 name limit reached" : "Add a name..."}
+            disabled={names.length >= 50}
             aria-label="Enter name to add"
           />
-          <IconButton onClick={handleAdd} title="Add name" aria-label="Add name">
+          <IconButton onClick={handleAdd} disabled={names.length >= 50} title="Add name" aria-label="Add name">
             <PlusIcon size={16} />
           </IconButton>
         </ButtonRow>

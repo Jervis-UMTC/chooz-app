@@ -11,13 +11,15 @@ export const COURSE = {
 export const BALL = {
   MIN_RADIUS: 5,
   MAX_RADIUS: 14,
-  GRAVITY: 0.35,
-  DAMPING: 1.0,
-  RESTITUTION: 0.65,
-  MAX_VELOCITY: 18,
+  GRAVITY: 0.25,
+  DAMPING: 0.94,
+  RESTITUTION: 0.45,
+  MAX_VELOCITY: 9,
   BALL_RESTITUTION: 0.5,
   OVERLAP_PUSH: 0.5,
   STAGGER_ROWS: 5,
+  SUB_STEPS: 3,        // Number of collision checks per frame
+  DRAFTING_BOOST: 0.02 // Downward vy boost when drafting behind another ball
 };
 
 export const CAMERA = {
@@ -36,13 +38,13 @@ export const OBSTACLES = {
   FUNNEL_HEIGHT: 50,
   ROW_SPACING: 80,
   FIRST_ROW_Y: 200,
-  PEGS_PER_ROW_MIN: 3,
-  PEGS_PER_ROW_MAX: 7,
+  PEGS_PER_ROW_MIN: 6,
+  PEGS_PER_ROW_MAX: 11,
   WALL_THICKNESS: 4,
   // Zigzag ramp
   ZIGZAG_SHELF_WIDTH: 140,
   ZIGZAG_SHELF_GAP: 40,
-  ZIGZAG_SHELF_ANGLE: 0.18, // radians, slight tilt so balls roll off
+  ZIGZAG_SHELF_ANGLE: 0.28, // radians, steeper tilt so balls roll off quickly
   // Spinner peg ring
   SPINNER_RING_RADIUS: 45,
   SPINNER_PEG_COUNT: 6,
@@ -50,6 +52,10 @@ export const OBSTACLES = {
   // Double funnel
   DOUBLE_FUNNEL_SPREAD: 160,
   DOUBLE_FUNNEL_HEIGHT: 55,
+  // Trapdoor
+  TRAPDOOR_CYCLE_TIME: 5000,
+  TRAPDOOR_OPEN_TIME: 800,
+  TRAPDOOR_SMOOTHING: 0.15,
 };
 
 /** Zone boundaries as fractions of course height (after start zone). */

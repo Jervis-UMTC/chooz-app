@@ -1,8 +1,16 @@
 import { useRef, useEffect, useState, memo } from 'react';
-import { COURSE, CAMERA, COLORS } from './MarbleConstants';
+import { COURSE, CAMERA, COLORS, OBSTACLES } from './MarbleConstants';
 import { createBalls, updateBalls } from './MarblePhysics';
 import { generateCourse } from './MarbleObstacles';
-import { drawBall, drawObstacle, drawFinishLine, drawWalls, drawBackground } from './MarbleDrawing';
+import {
+  drawBall,
+  drawObstacle,
+  drawFinishLine,
+  drawWalls,
+  drawBackground,
+  drawLeaderboard,
+  drawProgressBar
+} from './MarbleDrawing';
 import { playTick, playWin } from '../../utils/sounds';
 
 /**
@@ -121,12 +129,18 @@ const MarbleCanvas = ({ names, racing, onRaceFinish, mode }) => {
       // Sort by y so closer balls draw on top
       const sortedBalls = [...balls].sort((a, b) => a.y - b.y);
       for (const ball of sortedBalls) {
-        drawBall(ctx, ball, cameraY, viewportHeight, ball.id === leaderIndex);
+        drawBall(ctx, ball, cameraY, viewportHeight, ball.id === leaderIndex, size.width);
       }
 
       // Physics step
       if (racingRef.current) {
-        const { collisions, newFinishers } = updateBalls(balls, obstaclesRef.current, courseWidth, finishYRef.current);
+        const { collisions, newFinishers } = updateBalls(
+          balls,
+          obstaclesRef.current,
+          courseWidth,
+          finishYRef.current,
+          timestamp,
+        );
 
         // Tick sound on collisions (throttled)
         if (collisions > 0 && timestamp - lastTickTime > 50) {
@@ -164,6 +178,21 @@ const MarbleCanvas = ({ names, racing, onRaceFinish, mode }) => {
           const clampedTarget = Math.max(0, Math.min(targetY, finishYRef.current - viewportHeight + 100));
           cameraYRef.current += (clampedTarget - cameraYRef.current) * CAMERA.LERP_SPEED;
         }
+
+        // Draw UI Overlays (Leaderboard & Progress)
+        // Ensure UI stays locked to the screen, unaffected by camera transform
+        ctx.restore();
+        ctx.save();
+
+        const top5 = sortedBalls.slice(-5).reverse(); // highest Y first
+        drawLeaderboard(ctx, top5, courseWidth, size.width);
+
+        const progressY = leaderY > 0 ? leaderY : 0;
+        const totalDist = finishYRef.current - OBSTACLES.FIRST_ROW_Y;
+        const currentDist = progressY - OBSTACLES.FIRST_ROW_Y;
+        const progressPct = Math.max(0, Math.min(1, currentDist / totalDist));
+
+        drawProgressBar(ctx, progressPct, top5[0], courseWidth, viewportHeight);
       }
 
       ctx.restore();

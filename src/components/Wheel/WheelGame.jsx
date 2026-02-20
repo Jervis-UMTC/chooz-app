@@ -5,6 +5,7 @@ import Celebration from './Celebration';
 import { AnimatePresence } from 'framer-motion';
 import { initAudio, setMuted, getMuted } from '../../utils/sounds';
 import { ArrowLeftIcon, StopIcon, TrashIcon, VolumeIcon, MuteIcon, RefreshIcon, CloseIcon } from '../common/Icons';
+import { useLocalStorage } from '../../hooks/useLocalStorage';
 import {
   GameContainer,
   FloatingNav,
@@ -24,16 +25,18 @@ import {
   MuteButton,
 } from './WheelGame.styles';
 
+const DEFAULT_SPIN_DURATION = 5;
+const MAX_HISTORY_SIZE = 20;
+
 const WheelGame = ({
   names, setNames,
-  mustSpin, setMustSpin,
-  prizeNumber, setPrizeNumber,
-  winner, setWinner,
   onBack,
-  spinDuration = 5,
-  setSpinDuration,
-  history = []
 }) => {
+  const [mustSpin, setMustSpin] = useState(false);
+  const [prizeNumber, setPrizeNumber] = useState(0);
+  const [winner, setWinner] = useState(null);
+  const [spinDuration, setSpinDuration] = useState(DEFAULT_SPIN_DURATION);
+  const [history, setHistory] = useLocalStorage('chooz_history', []);
   const [isMutedState, setIsMutedState] = useState(getMuted());
   const isAbortingRef = useRef(false);
 
@@ -75,7 +78,9 @@ const WheelGame = ({
       setWinner(null);
       return;
     }
-    setWinner(names[prizeNumber]);
+    const newWinner = names[prizeNumber];
+    setWinner(newWinner);
+    setHistory(prev => [newWinner, ...prev].slice(0, MAX_HISTORY_SIZE));
   };
 
   const handleRemoveWinner = useCallback(() => {

@@ -1,19 +1,16 @@
-import { useState, useEffect } from 'react'
-import WheelGame from './components/Wheel/WheelGame'
-import LandingPage from './components/LandingPage'
-import HomePage from './components/Home/HomePage'
-import CoinGame from './components/Coin/CoinGame'
-import DiceGame from './components/Dice/DiceGame'
-import MarbleGame from './components/MarbleRace/MarbleGame'
-import './index.css'
-import ChoozTextLogo from './assets/chooz-text-logo.svg'
+import { useState } from 'react';
+import WheelGame from './components/Wheel/WheelGame';
+import LandingPage from './components/LandingPage';
+import HomePage from './components/Home/HomePage';
+import CoinGame from './components/Coin/CoinGame';
+import DiceGame from './components/Dice/DiceGame';
+import MarbleGame from './components/MarbleRace/MarbleGame';
+import './index.css';
+import ChoozTextLogo from './assets/chooz-text-logo.svg';
 import styled from 'styled-components';
 import { AnimatePresence, motion } from 'framer-motion';
+import { useLocalStorage } from './hooks/useLocalStorage';
 
-const STORAGE_KEY_NAMES = 'chooz_names';
-const STORAGE_KEY_HISTORY = 'chooz_history';
-const MAX_HISTORY_SIZE = 20;
-const DEFAULT_SPIN_DURATION = 5;
 const DEFAULT_NAMES = ['Alice', 'Bob', 'Charlie', 'David', 'Eve', 'Frank'];
 
 const HeaderContainer = styled.header`
@@ -37,38 +34,10 @@ const PageTransition = styled(motion.div)`
 
 function App() {
   const [view, setView] = useState('landing');
-  const [names, setNames] = useState(() => {
-    const saved = localStorage.getItem(STORAGE_KEY_NAMES);
-    return saved ? JSON.parse(saved) : DEFAULT_NAMES;
-  });
-  const [mustSpin, setMustSpin] = useState(false);
-  const [prizeNumber, setPrizeNumber] = useState(0);
-  const [winner, setWinner] = useState(null);
-  const [spinDuration, setSpinDuration] = useState(DEFAULT_SPIN_DURATION);
-  const [history, setHistory] = useState(() => {
-    const saved = localStorage.getItem(STORAGE_KEY_HISTORY);
-    return saved ? JSON.parse(saved) : [];
-  });
-
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY_NAMES, JSON.stringify(names));
-  }, [names]);
-
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY_HISTORY, JSON.stringify(history));
-  }, [history]);
-
-  const setWinnerWithHistory = (newWinner) => {
-    setWinner(newWinner);
-    if (newWinner) {
-      setHistory(previousHistory => [newWinner, ...previousHistory].slice(0, MAX_HISTORY_SIZE));
-    }
-  };
+  const [names, setNames] = useLocalStorage('chooz_names', DEFAULT_NAMES);
 
   const navigate = (newView) => {
     setView(newView);
-    setMustSpin(false);
-    setWinner(null);
   };
 
   return (
@@ -98,16 +67,7 @@ function App() {
             <WheelGame
               names={names}
               setNames={setNames}
-              mustSpin={mustSpin}
-              setMustSpin={setMustSpin}
-              prizeNumber={prizeNumber}
-              setPrizeNumber={setPrizeNumber}
-              winner={winner}
-              setWinner={setWinnerWithHistory}
               onBack={() => navigate('home')}
-              spinDuration={spinDuration}
-              setSpinDuration={setSpinDuration}
-              history={history}
             />
           )}
           {view === 'coin' && (
@@ -126,7 +86,7 @@ function App() {
         </PageTransition>
       </AnimatePresence>
     </div>
-  )
+  );
 }
 
-export default App
+export default App;

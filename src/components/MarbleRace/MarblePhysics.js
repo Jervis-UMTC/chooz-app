@@ -119,6 +119,21 @@ const checkBallCollisions = (balls) => {
         if (!cell) continue;
         for (const other of cell) {
           if (other.id <= ball.id || other.finished) continue;
+
+          // Drafting check: if 'other' is below 'ball' but horizontally close, boost 'ball' vy
+          // Tightened horizontal distance check to prevent weird sideways drafting
+          if (other.y > ball.y && Math.abs(other.x - ball.x) < size * 0.5) {
+            // Apply slight downward acceleration to the trailing ball (less air resistance)
+            ball.vy += BALL.DRAFTING_BOOST;
+            // Anti-Clumping Turbulence: push trailing ball sideways to avoid single-file lines
+            ball.vx += (Math.random() - 0.5) * 0.15;
+          } else if (ball.y > other.y && Math.abs(ball.x - other.x) < size * 0.5) {
+            // Apply slight downward acceleration to 'other' if it is trailing
+            other.vy += BALL.DRAFTING_BOOST;
+            // Anti-Clumping Turbulence
+            other.vx += (Math.random() - 0.5) * 0.15;
+          }
+
           resolveBallCollision(ball, other);
         }
       }
@@ -141,59 +156,34 @@ const collidePeg = (ball, peg) => {
     ball.x = peg.x + nx * minDist;
     ball.y = peg.y + ny * minDist;
 
-    const dot = ball.vx * nx + ball.vy * ny;
-    ball.vx -= (1 + BALL.RESTITUTION) * dot * nx;
-    ball.vy -= (1 + BALL.RESTITUTION) * dot * ny;
+    // Relative velocity
+    const pnx = ball.vx - (peg.vx || 0);
+    const pny = ball.vy - (peg.vy || 0);
+
+    const dot = pnx * nx + pny * ny;
+
+    // Bouncy pegs have higher restitution
+    const restitution = peg.isBouncy ? BALL.RESTITUTION * 1.5 : BALL.RESTITUTION;
+
+    ball.vx -= (1 + restitution) * dot * nx;
+    ball.vy -= (1 + restitution) * dot * ny;
+
+    // Add back the peg's velocity to the ball (moving bodies push)
+    if (peg.vx) ball.vx += peg.vx;
+    if (peg.vy) ball.vy += peg.vy;
+
+    // Minimum bounce to prevent energy death
+    ball.vx += nx * 0.5;
+    ball.vy += ny * 0.5;
 
     // Add slight random deflection
-    ball.vx += (Math.random() - 0.5) * 0.5;
+    ball.vx += (Math.random() - 0.5) * 1.0;
     return true;
   }
   return false;
 };
 
-/**
- * Resolves ball collision with a rectangular bumper.
- */
-const collideBumper = (ball, bumper) => {
-  const closestX = clamp(ball.x, bumper.x, bumper.x + bumper.width);
-  const closestY = clamp(ball.y, bumper.y, bumper.y + bumper.height);
-  const dx = ball.x - closestX;
-  const dy = ball.y - closestY;
-  const dist = Math.sqrt(dx * dx + dy * dy);
 
-  if (dist < ball.radius && dist > 0.01) {
-    const nx = dx / dist;
-    const ny = dy / dist;
-    ball.x = closestX + nx * ball.radius;
-    ball.y = closestY + ny * ball.radius;
-
-    const dot = ball.vx * nx + ball.vy * ny;
-    ball.vx -= (1 + BALL.RESTITUTION) * dot * nx;
-    ball.vy -= (1 + BALL.RESTITUTION) * dot * ny;
-
-    const isTopHit = Math.abs(ny) > 0.7;
-    if (isTopHit) {
-      // Resting contact: if bounce velocity is too weak, don't bounce — slide off
-      if (Math.abs(ball.vy) < 2.0) {
-        ball.vy = 0;
-      }
-
-      // Strong sideways push to slide off the bumper edge
-      const bumperCenter = bumper.x + bumper.width / 2;
-      const direction = ball.x > bumperCenter ? 1 : -1;
-      ball.vx += direction * (2 + Math.random() * 2);
-
-      // Ensure minimum horizontal speed
-      if (Math.abs(ball.vx) < 2.5) {
-        ball.vx = direction * 2.5;
-      }
-    }
-
-    return true;
-  }
-  return false;
-};
 
 /**
  * Resolves ball collision with a funnel line segment.
@@ -225,9 +215,67 @@ const collideFunnelSegment = (ball, seg) => {
     ball.x = closestX + pnx * hitDist;
     ball.y = closestY + pny * hitDist;
 
-    const dot = ball.vx * pnx + ball.vy * pny;
+    // Relative velocity
+    const rvx = ball.vx - (seg.vx || 0);
+    const rvy = ball.vy - (seg.vy || 0);
+
+    const dot = rvx * pnx + rvy * pny;
     ball.vx -= (1 + BALL.RESTITUTION) * dot * pnx;
     ball.vy -= (1 + BALL.RESTITUTION) * dot * pny;
+
+    if (seg.vx) ball.vx += seg.vx;
+    if (seg.vy) ball.vy += seg.vy;
+
+    // Arcade Polish: Injects a strong lateral bounce off sloped walls 
+    // to prevent balls from slowly crawling or settling.
+    ball.vx += Math.sign(pnx) * 1.5;
+
+    return true;
+  }
+  return false;
+};
+
+/**
+ * Resolves ball collision with an axis-aligned bounding box (AABB).
+ * Used for the slider sweepers.
+ */
+const collideRect = (ball, rect) => {
+  // Find the closest point to the circle within the rectangle
+  const closestX = clamp(ball.x, rect.x, rect.x + rect.width);
+  const closestY = clamp(ball.y, rect.y, rect.y + rect.height);
+
+  // Calculate the distance between the circle's center and this closest point
+  const dx = ball.x - closestX;
+  const dy = ball.y - closestY;
+  const distSq = dx * dx + dy * dy;
+
+  // Collision!
+  if (distSq < ball.radius * ball.radius && distSq > 0.001) {
+    const dist = Math.sqrt(distSq);
+    const pnx = dx / dist;
+    const pny = dy / dist;
+
+    // Push the ball out of the rectangle
+    ball.x = closestX + pnx * ball.radius;
+    ball.y = closestY + pny * ball.radius;
+
+    // Relative velocity
+    const rvx = ball.vx - (rect.vx || 0);
+    const rvy = ball.vy - (rect.vy || 0);
+
+    // Arcade Polish: Sliders isolated axis reflection to maintain drop speeds
+    // If it hits the sides horizontally, it reflects X. If hits top, reflects Y.
+    if (Math.abs(pnx) > Math.abs(pny)) {
+      ball.vx -= (1 + BALL.RESTITUTION) * (rvx * pnx) * pnx;
+    } else {
+      ball.vy -= (1 + BALL.RESTITUTION) * (rvy * pny) * pny;
+    }
+
+    // Transfer the slider's horizontal velocity aggressively
+    if (rect.vx) {
+      ball.vx += rect.vx * 1.2;
+    }
+
     return true;
   }
   return false;
@@ -243,10 +291,10 @@ const checkObstacleCollisions = (ball, obstacles) => {
     if (obs.type === 'spinner_ring') continue; // visual-only
     if (Math.abs(ball.y - obs.y) > 60 + ball.radius) continue;
 
-    if (obs.type === 'peg') {
+    if (obs.type === 'peg' || obs.type === 'spinner_peg') {
       if (collidePeg(ball, obs)) collided = true;
-    } else if (obs.type === 'bumper') {
-      if (collideBumper(ball, obs)) collided = true;
+    } else if (obs.type === 'slider' || obs.type === 'trapdoor_block') {
+      if (collideRect(ball, obs)) collided = true;
     } else if (
       obs.type === 'funnel_left' || obs.type === 'funnel_right' ||
       obs.type === 'zigzag_left' || obs.type === 'zigzag_right'
@@ -258,77 +306,118 @@ const checkObstacleCollisions = (ball, obstacles) => {
 };
 
 /**
+ * Updates the positions of moving obstacles (sliders, spinners, trapdoors).
+ */
+const updateMovingObstacles = (obstacles, timestamp) => {
+  for (const obs of obstacles) {
+    if (obs.type === 'slider') {
+      const time = timestamp * obs.speed + obs.timeOffset;
+      const expectedX = obs.startX + Math.sin(time) * obs.range;
+      obs.vx = expectedX - obs.x;
+      obs.x = expectedX;
+      obs.x2 = obs.x + obs.width;
+    } else if (obs.type === 'spinner_ring') {
+      obs.angle += obs.angularVelocity;
+    } else if (obs.type === 'spinner_peg') {
+      const ring = obstacles.find(o => o.id === obs.ringId);
+      if (ring) {
+        const expectedX = ring.x + Math.cos(ring.angle + obs.angleOffset) * ring.radius;
+        const expectedY = ring.y + Math.sin(ring.angle + obs.angleOffset) * ring.radius;
+        obs.vx = expectedX - obs.x;
+        obs.vy = expectedY - obs.y;
+        obs.x = expectedX;
+        obs.y = expectedY;
+      }
+    } else if (obs.type === 'funnel_left' && obs.isSwaying) {
+      const time = timestamp * obs.speed + obs.timeOffset;
+      const offset = Math.sin(time) * obs.range;
+      obs.vx = (obs.startX + offset) - obs.x;
+      obs.x = obs.startX + offset;
+      obs.x2 = obs.startX2 + offset;
+    } else if (obs.type === 'funnel_right' && obs.isSwaying) {
+      const time = timestamp * obs.speed + obs.timeOffset;
+      const offset = Math.sin(time) * obs.range;
+      obs.vx = (obs.startX + offset) - obs.x;
+      obs.x = obs.startX + offset;
+      obs.x2 = obs.startX2 + offset;
+    } else if (obs.type === 'trapdoor_block') {
+      const cycleTime = OBSTACLES.TRAPDOOR_CYCLE_TIME;
+      const localTime = (timestamp + obs.timeOffset) % cycleTime;
+      const openTime = OBSTACLES.TRAPDOOR_OPEN_TIME;
+      const expectedX = localTime < openTime ? obs.startX + obs.openRange : obs.startX;
+      const prevX = obs.x;
+
+      obs.x += (expectedX - obs.x) * OBSTACLES.TRAPDOOR_SMOOTHING;
+      obs.vx = obs.x - prevX;
+      obs.x2 = obs.x + obs.width;
+    }
+  }
+};
+
+/**
+ * Applies basic physics forces (gravity, damping, clamping) to a single ball.
+ */
+const applyForces = (ball) => {
+  ball.vy += BALL.GRAVITY;
+  ball.vx *= BALL.DAMPING;
+  ball.vy *= BALL.DAMPING;
+  ball.vx = clamp(ball.vx, -BALL.MAX_VELOCITY, BALL.MAX_VELOCITY);
+  ball.vy = clamp(ball.vy, -BALL.MAX_VELOCITY, BALL.MAX_VELOCITY);
+};
+
+/**
+ * Handles sub-stepped movement and collisions for a single ball.
+ * @returns {number} The number of collisions that occurred.
+ */
+const moveAndCollideBall = (ball, obstacles, courseWidth) => {
+  const steps = 3;
+  let frameCollisions = 0;
+
+  for (let i = 0; i < steps; i++) {
+    ball.x += ball.vx / steps;
+    ball.y += ball.vy / steps;
+
+    if (ball.x - ball.radius < COURSE.WALL_THICKNESS) {
+      ball.x = COURSE.WALL_THICKNESS + ball.radius;
+      ball.vx = Math.abs(ball.vx) * BALL.RESTITUTION;
+      frameCollisions++;
+    }
+    if (ball.x + ball.radius > courseWidth - COURSE.WALL_THICKNESS) {
+      ball.x = courseWidth - COURSE.WALL_THICKNESS - ball.radius;
+      ball.vx = -Math.abs(ball.vx) * BALL.RESTITUTION;
+      frameCollisions++;
+    }
+
+    if (checkObstacleCollisions(ball, obstacles)) {
+      frameCollisions++;
+    }
+  }
+
+  return frameCollisions;
+};
+
+/**
  * Main physics update step. Advances all balls by one frame.
  * @param {Array<object>} balls - Ball objects.
  * @param {Array<object>} obstacles - Obstacle objects.
  * @param {number} courseWidth - Course width.
  * @param {number} finishY - Y position of the finish line.
+ * @param {number} timestamp - Current frame timestamp.
  * @returns {{ collisions: number, newFinishers: Array<object> }}
  */
-export const updateBalls = (balls, obstacles, courseWidth, finishY) => {
+export const updateBalls = (balls, obstacles, courseWidth, finishY, timestamp) => {
   let collisions = 0;
   const newFinishers = [];
   let finishCount = balls.filter(b => b.finished).length;
 
+  updateMovingObstacles(obstacles, timestamp);
+
   for (const ball of balls) {
     if (ball.finished) continue;
 
-    // --- Anti-stuck detection ---
-    if (ball.lastX === undefined) {
-      ball.lastX = ball.x;
-      ball.lastY = ball.y;
-      ball.stallFrames = 0;
-    }
+    applyForces(ball);
 
-    const movedX = Math.abs(ball.x - ball.lastX);
-    const movedY = Math.abs(ball.y - ball.lastY);
-
-    if (movedX < 0.3 && movedY < 0.3) {
-      ball.stallFrames++;
-    } else {
-      ball.stallFrames = 0;
-    }
-
-    ball.lastX = ball.x;
-    ball.lastY = ball.y;
-
-    // Rescue kick if stuck (~0.75 seconds at 60fps)
-    if (ball.stallFrames > 45) {
-      ball.vy = 6 + Math.random() * 3;
-      ball.vx = (Math.random() - 0.5) * 8;
-      ball.y += 5; // nudge past the obstacle
-      ball.stallFrames = 0;
-    }
-
-    // Gravity
-    ball.vy += BALL.GRAVITY;
-
-    // Damping (1.0 = no damping, only vx friction on collisions)
-    ball.vx *= BALL.DAMPING;
-    ball.vy *= BALL.DAMPING;
-
-    // Clamp velocity
-    ball.vx = clamp(ball.vx, -BALL.MAX_VELOCITY, BALL.MAX_VELOCITY);
-    ball.vy = clamp(ball.vy, -BALL.MAX_VELOCITY, BALL.MAX_VELOCITY);
-
-    // Move
-    ball.x += ball.vx;
-    ball.y += ball.vy;
-
-    // Wall collisions
-    if (ball.x - ball.radius < COURSE.WALL_THICKNESS) {
-      ball.x = COURSE.WALL_THICKNESS + ball.radius;
-      ball.vx = Math.abs(ball.vx) * BALL.RESTITUTION;
-      collisions++;
-    }
-    if (ball.x + ball.radius > courseWidth - COURSE.WALL_THICKNESS) {
-      ball.x = courseWidth - COURSE.WALL_THICKNESS - ball.radius;
-      ball.vx = -Math.abs(ball.vx) * BALL.RESTITUTION;
-      collisions++;
-    }
-
-    // Obstacle collisions
-    if (checkObstacleCollisions(ball, obstacles)) {
+    if (moveAndCollideBall(ball, obstacles, courseWidth) > 0) {
       collisions++;
     }
 
@@ -344,7 +433,6 @@ export const updateBalls = (balls, obstacles, courseWidth, finishY) => {
     }
   }
 
-  // Ball-to-ball collisions
   checkBallCollisions(balls);
 
   return { collisions, newFinishers };

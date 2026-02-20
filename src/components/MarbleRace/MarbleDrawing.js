@@ -17,7 +17,7 @@ const truncateLabel = (ctx, text, maxWidth) => {
 /**
  * Draws a single ball with its name label.
  */
-export const drawBall = (ctx, ball, cameraY, viewportHeight, isLeader) => {
+export const drawBall = (ctx, ball, cameraY, viewportHeight, isLeader, viewportWidth) => {
   const screenY = ball.y - cameraY;
   if (screenY < -30 || screenY > viewportHeight + 30) return;
 
@@ -50,13 +50,22 @@ export const drawBall = (ctx, ball, cameraY, viewportHeight, isLeader) => {
   ctx.fill();
 
   // Name label
-  const fontSize = Math.max(7, ball.radius * 0.9);
+  const isMobile = viewportWidth && viewportWidth < 600;
+
+  // Scale down font on mobile
+  const fontMultiplier = isMobile ? 0.65 : 0.9;
+  const fontSize = Math.max(isMobile ? 5 : 7, ball.radius * fontMultiplier);
+
   ctx.font = `700 ${fontSize}px sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillStyle = COLORS.BALL_LABEL;
-  const maxLabelWidth = ball.radius * 2.5;
+
+  // Truncate more aggressively on mobile
+  const maxLabelWidthMultiplier = isMobile ? 1.5 : 2.5;
+  const maxLabelWidth = ball.radius * maxLabelWidthMultiplier;
   const label = truncateLabel(ctx, ball.name, maxLabelWidth);
+
   ctx.fillText(label, ball.x, screenY + ball.radius + fontSize + 2);
 
   ctx.restore();
@@ -87,33 +96,7 @@ const drawPeg = (ctx, obstacle, screenY) => {
   ctx.fill();
 };
 
-/**
- * Draws a bumper with rounded gradient bar and subtle glow.
- */
-const drawBumper = (ctx, obstacle, screenY) => {
-  const { x, width, height } = obstacle;
-  const cornerRadius = height / 2;
 
-  // Glow
-  ctx.save();
-  ctx.shadowColor = COLORS.BUMPER_GLOW;
-  ctx.shadowBlur = 8;
-  ctx.shadowOffsetY = 2;
-  ctx.beginPath();
-  ctx.roundRect(x, screenY, width, height, cornerRadius);
-  ctx.fillStyle = COLORS.BUMPER;
-  ctx.fill();
-  ctx.restore();
-
-  // Gradient overlay (top face)
-  const grad = ctx.createLinearGradient(x, screenY, x, screenY + height);
-  grad.addColorStop(0, COLORS.BUMPER_TOP);
-  grad.addColorStop(1, COLORS.BUMPER);
-  ctx.beginPath();
-  ctx.roundRect(x, screenY, width, height, cornerRadius);
-  ctx.fillStyle = grad;
-  ctx.fill();
-};
 
 /**
  * Draws a funnel line segment with a gradient stroke.
@@ -185,6 +168,39 @@ const drawSpinnerRing = (ctx, obstacle, screenY) => {
 };
 
 /**
+ * Draws a sliding sweeper.
+ */
+const drawSlider = (ctx, obstacle, screenY) => {
+  const width = obstacle.width;
+  const height = obstacle.height;
+
+  // Base block
+  ctx.fillStyle = '#f59e0b'; // Amber warning color
+  ctx.fillRect(obstacle.x, screenY, width, height);
+
+  // Hazard stripes
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(obstacle.x, screenY, width, height);
+  ctx.clip();
+
+  ctx.lineWidth = 6;
+  ctx.strokeStyle = '#b45309'; // Darker amber
+
+  for (let i = -width; i < width * 2; i += 16) {
+    ctx.beginPath();
+    ctx.moveTo(obstacle.x + i, screenY);
+    ctx.lineTo(obstacle.x + i - height, screenY + height);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  // Depth shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.fillRect(obstacle.x, screenY + height, width, 4);
+};
+
+/**
  * Draws an obstacle relative to the camera.
  */
 export const drawObstacle = (ctx, obstacle, cameraY, viewportHeight) => {
@@ -196,16 +212,16 @@ export const drawObstacle = (ctx, obstacle, cameraY, viewportHeight) => {
 
   ctx.save();
 
-  if (obstacle.type === 'peg') {
+  if (obstacle.type === 'peg' || obstacle.type === 'spinner_peg') {
     drawPeg(ctx, obstacle, screenY);
-  } else if (obstacle.type === 'bumper') {
-    drawBumper(ctx, obstacle, screenY);
   } else if (obstacle.type === 'funnel_left' || obstacle.type === 'funnel_right') {
     drawFunnel(ctx, obstacle, screenY, cameraY);
   } else if (obstacle.type === 'zigzag_left' || obstacle.type === 'zigzag_right') {
     drawZigzag(ctx, obstacle, screenY, cameraY);
   } else if (obstacle.type === 'spinner_ring') {
     drawSpinnerRing(ctx, obstacle, screenY);
+  } else if (obstacle.type === 'slider' || obstacle.type === 'trapdoor_block') {
+    drawSlider(ctx, obstacle, screenY);
   }
 
   ctx.restore();
@@ -280,4 +296,103 @@ const lightenColor = (hex, amount) => {
   const g = Math.min(255, ((num >> 8) & 0x00FF) + amount);
   const b = Math.min(255, (num & 0x0000FF) + amount);
   return `#${(r << 16 | g << 8 | b).toString(16).padStart(6, '0')}`;
+};
+
+/**
+ * Draws the real-time leaderboard overlay in the top right.
+ */
+export const drawLeaderboard = (ctx, topBalls, courseWidth) => {
+  if (topBalls.length === 0) return;
+
+  const padding = 10;
+  const width = 130;
+  const startX = courseWidth - width - 15;
+  const startY = 15;
+
+  ctx.save();
+  // Highly-transparent background
+  ctx.fillStyle = 'rgba(15, 23, 42, 0.35)'; // Slate 900
+  ctx.shadowColor = 'rgba(0,0,0,0.2)';
+  ctx.shadowBlur = 4;
+  ctx.shadowOffsetY = 2;
+
+  // Rounded rect
+  ctx.beginPath();
+  ctx.roundRect(startX, startY, width, 26 + topBalls.length * 26, 6);
+  ctx.fill();
+
+  ctx.shadowColor = 'transparent';
+
+  // Title
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.4)'; // highly muted mute
+  ctx.font = 'bold 10px Inter, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('LEADERBOARD', startX + width / 2, startY + 16);
+
+  // Entries
+  ctx.textAlign = 'left';
+  topBalls.forEach((ball, index) => {
+    const y = startY + 38 + index * 26;
+
+    // Rank number (muted colors)
+    ctx.fillStyle = index === 0 ? 'rgba(251, 191, 36, 0.8)' :
+      index === 1 ? 'rgba(203, 213, 225, 0.8)' :
+        index === 2 ? 'rgba(180, 83, 9, 0.8)' :
+          'rgba(100, 116, 139, 0.8)';
+    ctx.font = 'bold 12px Inter, sans-serif';
+    ctx.fillText(`${index + 1}.`, startX + 12, y);
+
+    // Ball color swatch (smaller, no stroke)
+    ctx.beginPath();
+    ctx.arc(startX + 38, y - 4, 6, 0, Math.PI * 2);
+    ctx.fillStyle = ball.color;
+    ctx.fill();
+
+    // Name (muted white, shorter truncation)
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+    ctx.font = '12px Inter, sans-serif';
+    let displayName = ball.name;
+    if (ctx.measureText(displayName).width > 65) {
+      displayName = displayName.substring(0, 6) + '..';
+    }
+    ctx.fillText(displayName, startX + 54, y);
+  });
+
+  ctx.restore();
+};
+
+/**
+ * Draws the vertical track progress bar on the right edge.
+ */
+export const drawProgressBar = (ctx, progressPct, leaderBall, courseWidth, viewportHeight) => {
+  if (!leaderBall) return;
+
+  const barWidth = 4;
+  const startX = 0; // Absolute left edge over the wall
+  const startY = 0;
+  const height = viewportHeight;
+
+  ctx.save();
+
+  // Track background 
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+  ctx.fillRect(startX, startY, barWidth, height);
+
+  // Progress fill (muted)
+  const fillHeight = Math.max(0, height * progressPct);
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+  ctx.fillRect(startX, startY, barWidth, fillHeight);
+
+  // Leader marker (smaller, placed just outside the wall)
+  const markerY = startY + fillHeight;
+  ctx.beginPath();
+  ctx.arc(startX + barWidth + 2, markerY, 4, 0, Math.PI * 2);
+  ctx.fillStyle = leaderBall.color;
+  ctx.fill();
+
+  // Finish line marker at bottom
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+  ctx.fillRect(startX, startY + height - 2, barWidth + 4, 2);
+
+  ctx.restore();
 };

@@ -1,5 +1,12 @@
 import styled from 'styled-components';
 
+/**
+ * A reusable, styled button component with a gradient background and hover effects.
+ * Accepts all standard HTML button attributes as props.
+ * 
+ * @type {import('styled-components').StyledComponent<"button", any, {}, never>}
+ */
+
 export const Button = styled.button`
   background: linear-gradient(135deg, var(--brand-orange) 0%, var(--brand-red) 100%);
   color: white;
