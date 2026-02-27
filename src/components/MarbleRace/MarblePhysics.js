@@ -1,4 +1,4 @@
-import { BALL, COURSE, GRID, OBSTACLES } from './MarbleConstants';
+import { BALL, COURSE, GRID, OBSTACLES, COLORS, MIXER } from './MarbleConstants';
 import { GAME_COLORS } from '../../utils/colors';
 
 /**
@@ -17,27 +17,21 @@ export const getBallRadius = (count) =>
  */
 export const createBalls = (names, courseWidth) => {
   const radius = getBallRadius(names.length);
-  const cols = Math.min(names.length, Math.floor((courseWidth - 40) / (radius * 3)));
-  const spacing = (courseWidth - 40) / (cols + 1);
-
-  // Shuffle position indices so no ball consistently gets the best spot
-  const positions = names.map((_, i) => i);
-  for (let i = positions.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [positions[i], positions[j]] = [positions[j], positions[i]];
-  }
+  const mixerCenterX = courseWidth / 2;
+  const mixerCenterY = MIXER.CENTER_Y;
+  const mixerRadius = MIXER.RADIUS;
 
   return names.map((name, index) => {
-    const posIndex = positions[index];
-    const row = Math.floor(posIndex / cols);
-    const col = posIndex % cols;
+    // Place balls randomly inside the mixer circle
+    const angle = (index / names.length) * Math.PI * 2 + Math.random() * 0.3;
+    const dist = Math.random() * (mixerRadius - radius * 2);
     return {
       id: index,
       name,
-      x: 20 + spacing * (col + 1) + (Math.random() - 0.5) * radius,
-      y: 30 + row * (radius * 2.5) + Math.random() * 5,
-      vx: (Math.random() - 0.5) * 1.5,
-      vy: Math.random() * 0.5,
+      x: mixerCenterX + Math.cos(angle) * dist,
+      y: mixerCenterY + Math.sin(angle) * dist,
+      vx: (Math.random() - 0.5) * 2,
+      vy: (Math.random() - 0.5) * 2,
       radius,
       color: GAME_COLORS[index % GAME_COLORS.length],
       finished: false,
@@ -50,6 +44,70 @@ export const createBalls = (names, courseWidth) => {
  * Clamps a value between min and max.
  */
 const clamp = (val, min, max) => Math.max(min, Math.min(max, val));
+
+/**
+ * Updates balls during the mixer (spinning drum) phase.
+ * Confines balls inside a circle and applies spin force.
+ * @param {Array<object>} balls - Ball objects.
+ * @param {number} courseWidth - Course width.
+ * @param {number} timestamp - Frame timestamp.
+ * @returns {void}
+ */
+export const updateMixer = (balls, courseWidth, timestamp) => {
+  const cx = courseWidth / 2;
+  const cy = MIXER.CENTER_Y;
+  const containerR = MIXER.RADIUS;
+  const spinForce = MIXER.SPIN_FORCE;
+
+  for (const ball of balls) {
+    // Apply gravity
+    ball.vy += BALL.GRAVITY;
+
+    // Apply spin (tangential force to create rotation)
+    const dx = ball.x - cx;
+    const dy = ball.y - cy;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist > 0.1) {
+      // Tangential direction (perpendicular to radial, clockwise)
+      const tx = -dy / dist;
+      const ty = dx / dist;
+      ball.vx += tx * spinForce;
+      ball.vy += ty * spinForce;
+    }
+
+    // Damping
+    ball.vx *= BALL.DAMPING;
+    ball.vy *= BALL.DAMPING;
+    ball.vx = clamp(ball.vx, -BALL.MAX_VELOCITY, BALL.MAX_VELOCITY);
+    ball.vy = clamp(ball.vy, -BALL.MAX_VELOCITY, BALL.MAX_VELOCITY);
+
+    // Move
+    ball.x += ball.vx;
+    ball.y += ball.vy;
+
+    // Confine inside mixer circle
+    const dx2 = ball.x - cx;
+    const dy2 = ball.y - cy;
+    const dist2 = Math.sqrt(dx2 * dx2 + dy2 * dy2);
+    const maxDist = containerR - ball.radius;
+    if (dist2 > maxDist && dist2 > 0.01) {
+      const nx = dx2 / dist2;
+      const ny = dy2 / dist2;
+      ball.x = cx + nx * maxDist;
+      ball.y = cy + ny * maxDist;
+
+      // Reflect velocity off the circular wall
+      const dot = ball.vx * nx + ball.vy * ny;
+      if (dot > 0) {
+        ball.vx -= (1 + BALL.RESTITUTION) * dot * nx;
+        ball.vy -= (1 + BALL.RESTITUTION) * dot * ny;
+      }
+    }
+  }
+
+  // Ball-to-ball collisions inside mixer
+  checkBallCollisions(balls);
+};
 
 /**
  * Builds a spatial hash grid for efficient collision detection.
@@ -126,12 +184,12 @@ const checkBallCollisions = (balls) => {
             // Apply slight downward acceleration to the trailing ball (less air resistance)
             ball.vy += BALL.DRAFTING_BOOST;
             // Anti-Clumping Turbulence: push trailing ball sideways to avoid single-file lines
-            ball.vx += (Math.random() - 0.5) * 0.15;
+            ball.vx += (Math.random() - 0.5) * BALL.TURBULENCE;
           } else if (ball.y > other.y && Math.abs(ball.x - other.x) < size * 0.5) {
             // Apply slight downward acceleration to 'other' if it is trailing
             other.vy += BALL.DRAFTING_BOOST;
             // Anti-Clumping Turbulence
-            other.vx += (Math.random() - 0.5) * 0.15;
+            other.vx += (Math.random() - 0.5) * BALL.TURBULENCE;
           }
 
           resolveBallCollision(ball, other);
@@ -144,7 +202,7 @@ const checkBallCollisions = (balls) => {
 /**
  * Resolves ball collision with a circular peg.
  */
-const collidePeg = (ball, peg) => {
+const collidePeg = (ball, peg, particles) => {
   const dx = ball.x - peg.x;
   const dy = ball.y - peg.y;
   const dist = Math.sqrt(dx * dx + dy * dy);
@@ -162,11 +220,15 @@ const collidePeg = (ball, peg) => {
 
     const dot = pnx * nx + pny * ny;
 
-    // Bouncy pegs have higher restitution
-    const restitution = peg.isBouncy ? BALL.RESTITUTION * 1.5 : BALL.RESTITUTION;
+    if (dot < 0) {
+      // Bouncy pegs have higher restitution, pinball bumpers have extreme restitution
+      let restitution = BALL.RESTITUTION;
+      if (peg.isBouncy) restitution = BALL.RESTITUTION * 1.5;
+      if (peg.type === 'pinball_bumper') restitution = OBSTACLES.PINBALL_BUMPER_RESTITUTION || 1.8;
 
-    ball.vx -= (1 + restitution) * dot * nx;
-    ball.vy -= (1 + restitution) * dot * ny;
+      ball.vx -= (1 + restitution) * dot * nx;
+      ball.vy -= (1 + restitution) * dot * ny;
+    }
 
     // Add back the peg's velocity to the ball (moving bodies push)
     if (peg.vx) ball.vx += peg.vx;
@@ -178,6 +240,26 @@ const collidePeg = (ball, peg) => {
 
     // Add slight random deflection
     ball.vx += (Math.random() - 0.5) * 1.0;
+
+    // Emit particles on bouncy pegs or bumpers
+    if ((peg.isBouncy || peg.type === 'pinball_bumper') && particles) {
+      const isBumper = peg.type === 'pinball_bumper';
+      const sparkColor = isBumper ? '#fca5a5' : '#fbbf24'; // Pink/Red for bumpers, Gold for bouncy pegs
+      const sparkCount = isBumper ? 8 : 4;
+      const velocityMult = isBumper ? 0.6 : 0.3;
+
+      for (let i = 0; i < sparkCount; i++) {
+        particles.push({
+          x: ball.x - (nx * ball.radius),
+          y: ball.y - (ny * ball.radius),
+          vx: ball.vx * velocityMult + (Math.random() - 0.5) * (isBumper ? 8 : 4),
+          vy: ball.vy * velocityMult + (Math.random() - 0.5) * (isBumper ? 8 : 4),
+          life: 1.0,
+          maxLife: 15 + Math.random() * 15,
+          color: sparkColor,
+        });
+      }
+    }
     return true;
   }
   return false;
@@ -220,16 +302,94 @@ const collideFunnelSegment = (ball, seg) => {
     const rvy = ball.vy - (seg.vy || 0);
 
     const dot = rvx * pnx + rvy * pny;
-    ball.vx -= (1 + BALL.RESTITUTION) * dot * pnx;
-    ball.vy -= (1 + BALL.RESTITUTION) * dot * pny;
+
+    if (dot < 0) {
+      ball.vx -= (1 + BALL.RESTITUTION) * dot * pnx;
+      ball.vy -= (1 + BALL.RESTITUTION) * dot * pny;
+    }
 
     if (seg.vx) ball.vx += seg.vx;
     if (seg.vy) ball.vy += seg.vy;
 
     // Arcade Polish: Injects a strong lateral bounce off sloped walls 
     // to prevent balls from slowly crawling or settling.
-    ball.vx += Math.sign(pnx) * 1.5;
+    // Skip if hitting the exact tips of the funnel (t near 0 or 1) as it causes infinite ping-pong jams.
+    if (t > 0.05 && t < 0.95) {
+      ball.vx += Math.sign(pnx) * 3.0;
+      // Downward nudge to break deadlocks when two balls wedge at the mouth
+      ball.vy += 1.0;
+    }
 
+    return true;
+  }
+  return false;
+};
+
+/**
+ * Applies a strong gravity pull towards the black hole if a ball is within its event horizon radius.
+ */
+const applyBlackHoleGravity = (ball, hole) => {
+  const dx = hole.x - ball.x;
+  const dy = hole.y - ball.y;
+  const distSq = dx * dx + dy * dy;
+
+  const pullRadSq = OBSTACLES.BLACK_HOLE_PULL_RADIUS * OBSTACLES.BLACK_HOLE_PULL_RADIUS;
+
+  if (distSq < pullRadSq && distSq > 0) {
+    const dist = Math.sqrt(distSq);
+    // Stronger pull the closer you get
+    const pullStrength = (1 - (dist / OBSTACLES.BLACK_HOLE_PULL_RADIUS)) * OBSTACLES.BLACK_HOLE_PULL_FORCE;
+
+    ball.vx += (dx / dist) * pullStrength;
+    ball.vy += (dy / dist) * pullStrength;
+  }
+};
+
+/**
+ * Resolves ball collision with the center of a black hole (teleportation).
+ */
+const collideBlackHole = (ball, hole, particles) => {
+  const dx = hole.x - ball.x;
+  const dy = hole.y - ball.y;
+  const distSq = dx * dx + dy * dy;
+
+  const eventHorizonSq = OBSTACLES.BLACK_HOLE_RADIUS * OBSTACLES.BLACK_HOLE_RADIUS;
+
+  if (distSq < eventHorizonSq) {
+    // Suck the ball in and spit it out at the white hole coordinates
+    ball.x = hole.exitX;
+    ball.y = hole.exitY;
+
+    // Violent ejection
+    ball.vy = OBSTACLES.WHITE_HOLE_EJECT_FORCE;
+    ball.vx = (Math.random() - 0.5) * 10; // Scatter
+
+    if (particles) {
+      // Suck-in particles at Black Hole
+      for (let i = 0; i < 5; i++) {
+        particles.push({
+          x: hole.x + (Math.random() - 0.5) * 20,
+          y: hole.y + (Math.random() - 0.5) * 20,
+          vx: (Math.random() - 0.5) * 2,
+          vy: (Math.random() - 0.5) * 2,
+          life: 1.0,
+          maxLife: 15,
+          color: COLORS.BLACK_HOLE_ACCRETION,
+        });
+      }
+      // Eject particles at White Hole
+      for (let i = 0; i < 8; i++) {
+        particles.push({
+          x: hole.exitX,
+          y: hole.exitY,
+          vx: ball.vx * 0.5 + (Math.random() - 0.5) * 4,
+          vy: ball.vy * 0.5 + (Math.random() - 0.5) * 4,
+          life: 1.0,
+          maxLife: 20,
+          color: COLORS.WHITE_HOLE_RING,
+        });
+      }
+    }
     return true;
   }
   return false;
@@ -263,12 +423,16 @@ const collideRect = (ball, rect) => {
     const rvx = ball.vx - (rect.vx || 0);
     const rvy = ball.vy - (rect.vy || 0);
 
-    // Arcade Polish: Sliders isolated axis reflection to maintain drop speeds
-    // If it hits the sides horizontally, it reflects X. If hits top, reflects Y.
-    if (Math.abs(pnx) > Math.abs(pny)) {
-      ball.vx -= (1 + BALL.RESTITUTION) * (rvx * pnx) * pnx;
-    } else {
-      ball.vy -= (1 + BALL.RESTITUTION) * (rvy * pny) * pny;
+    const dot = rvx * pnx + rvy * pny;
+
+    if (dot < 0) {
+      // Arcade Polish: Sliders isolated axis reflection to maintain drop speeds
+      // If it hits the sides horizontally, it reflects X. If hits top, reflects Y.
+      if (Math.abs(pnx) > Math.abs(pny)) {
+        ball.vx -= (1 + BALL.RESTITUTION) * (rvx * pnx) * pnx;
+      } else {
+        ball.vy -= (1 + BALL.RESTITUTION) * (rvy * pny) * pny;
+      }
     }
 
     // Transfer the slider's horizontal velocity aggressively
@@ -281,20 +445,27 @@ const collideRect = (ball, rect) => {
   return false;
 };
 
+
 /**
  * Checks a ball against all obstacles and resolves collisions.
  * @returns {boolean} True if any collision occurred.
  */
-const checkObstacleCollisions = (ball, obstacles) => {
+const checkObstacleCollisions = (ball, obstacles, particles) => {
   let collided = false;
   for (const obs of obstacles) {
     if (obs.type === 'spinner_ring') continue; // visual-only
-    if (Math.abs(ball.y - obs.y) > 60 + ball.radius) continue;
+    const cullRadius = obs.type === 'black_hole'
+      ? OBSTACLES.BLACK_HOLE_PULL_RADIUS
+      : (obs.height || obs.radius || 60);
+    if (Math.abs(ball.y - obs.y) > cullRadius + ball.radius) continue;
 
-    if (obs.type === 'peg' || obs.type === 'spinner_peg') {
-      if (collidePeg(ball, obs)) collided = true;
+    if (obs.type === 'peg' || obs.type === 'spinner_peg' || obs.type === 'pinball_bumper') {
+      if (collidePeg(ball, obs, particles)) collided = true;
     } else if (obs.type === 'slider' || obs.type === 'trapdoor_block') {
       if (collideRect(ball, obs)) collided = true;
+    } else if (obs.type === 'black_hole') {
+      applyBlackHoleGravity(ball, obs);
+      if (collideBlackHole(ball, obs, particles)) collided = true;
     } else if (
       obs.type === 'funnel_left' || obs.type === 'funnel_right' ||
       obs.type === 'zigzag_left' || obs.type === 'zigzag_right'
@@ -309,6 +480,12 @@ const checkObstacleCollisions = (ball, obstacles) => {
  * Updates the positions of moving obstacles (sliders, spinners, trapdoors).
  */
 const updateMovingObstacles = (obstacles, timestamp) => {
+  // Pre-build a lookup map for spinner rings to avoid O(n) find() per peg
+  const ringMap = new Map();
+  for (const obs of obstacles) {
+    if (obs.type === 'spinner_ring') ringMap.set(obs.id, obs);
+  }
+
   for (const obs of obstacles) {
     if (obs.type === 'slider') {
       const time = timestamp * obs.speed + obs.timeOffset;
@@ -319,7 +496,7 @@ const updateMovingObstacles = (obstacles, timestamp) => {
     } else if (obs.type === 'spinner_ring') {
       obs.angle += obs.angularVelocity;
     } else if (obs.type === 'spinner_peg') {
-      const ring = obstacles.find(o => o.id === obs.ringId);
+      const ring = ringMap.get(obs.ringId);
       if (ring) {
         const expectedX = ring.x + Math.cos(ring.angle + obs.angleOffset) * ring.radius;
         const expectedY = ring.y + Math.sin(ring.angle + obs.angleOffset) * ring.radius;
@@ -340,6 +517,12 @@ const updateMovingObstacles = (obstacles, timestamp) => {
       obs.vx = (obs.startX + offset) - obs.x;
       obs.x = obs.startX + offset;
       obs.x2 = obs.startX2 + offset;
+    } else if (obs.type === 'black_hole') {
+      // Animate black hole rotation
+      obs.angle = (obs.angle || 0) + 0.05;
+    } else if (obs.type === 'white_hole') {
+      // Animate white hole rotation
+      obs.angle = (obs.angle || 0) - 0.05;
     } else if (obs.type === 'trapdoor_block') {
       const cycleTime = OBSTACLES.TRAPDOOR_CYCLE_TIME;
       const localTime = (timestamp + obs.timeOffset) % cycleTime;
@@ -354,11 +537,22 @@ const updateMovingObstacles = (obstacles, timestamp) => {
   }
 };
 
-/**
- * Applies basic physics forces (gravity, damping, clamping) to a single ball.
- */
-const applyForces = (ball) => {
-  ball.vy += BALL.GRAVITY;
+const applyForces = (ball, isLeader, trailFactor) => {
+  let appliedGravity = BALL.GRAVITY;
+
+  // Gradient rubber-banding: the further back you are, the stronger the boost.
+  // trailFactor: 0 = leader, 1 = last place
+  // Scales gravity from 1.0× (leader) up to 1.4× (last place)
+  if (trailFactor > 0) {
+    appliedGravity *= 1.0 + trailFactor * 0.4;
+  }
+
+  // Leader mechanics: Leader encounters "wind resistance" pushing them slightly back up
+  if (isLeader && ball.vy > 0) {
+    ball.vy -= BALL.LEADER_DRAG;
+  }
+
+  ball.vy += appliedGravity;
   ball.vx *= BALL.DAMPING;
   ball.vy *= BALL.DAMPING;
   ball.vx = clamp(ball.vx, -BALL.MAX_VELOCITY, BALL.MAX_VELOCITY);
@@ -369,8 +563,8 @@ const applyForces = (ball) => {
  * Handles sub-stepped movement and collisions for a single ball.
  * @returns {number} The number of collisions that occurred.
  */
-const moveAndCollideBall = (ball, obstacles, courseWidth) => {
-  const steps = 3;
+const moveAndCollideBall = (ball, obstacles, courseWidth, particles) => {
+  const steps = BALL.SUB_STEPS;
   let frameCollisions = 0;
 
   for (let i = 0; i < steps; i++) {
@@ -388,7 +582,7 @@ const moveAndCollideBall = (ball, obstacles, courseWidth) => {
       frameCollisions++;
     }
 
-    if (checkObstacleCollisions(ball, obstacles)) {
+    if (checkObstacleCollisions(ball, obstacles, particles)) {
       frameCollisions++;
     }
   }
@@ -403,22 +597,62 @@ const moveAndCollideBall = (ball, obstacles, courseWidth) => {
  * @param {number} courseWidth - Course width.
  * @param {number} finishY - Y position of the finish line.
  * @param {number} timestamp - Current frame timestamp.
+ * @param {Array<object>} particles - Array to push new particles into.
  * @returns {{ collisions: number, newFinishers: Array<object> }}
  */
-export const updateBalls = (balls, obstacles, courseWidth, finishY, timestamp) => {
+export const updateBalls = (balls, obstacles, courseWidth, finishY, timestamp, particles) => {
   let collisions = 0;
   const newFinishers = [];
   let finishCount = balls.filter(b => b.finished).length;
 
   updateMovingObstacles(obstacles, timestamp);
 
+  // Identify race positions for rubber-banding and leader mechanics
+  let lowestY = -Infinity; // Furthest down the track is the highest y value
+  let highestY = Infinity; // Furthest back is the lowest y value
+
+  for (const ball of balls) {
+    if (ball.finished) continue;
+    if (ball.y > lowestY) lowestY = ball.y;
+    if (ball.y < highestY) highestY = ball.y;
+  }
+
+  // Calculate the spread of the pack to determine who gets rubber-banding
+  const packSpread = lowestY - highestY;
+  // Consider someone "far behind" if they are more than 30% of the pack spread behind the leader
+  // and spread is significant enough 
+  const catchupThreshold = lowestY - (packSpread * 0.3);
+
   for (const ball of balls) {
     if (ball.finished) continue;
 
-    applyForces(ball);
+    const isLeader = ball.y === lowestY;
+    // Gradient trail factor: 0 = leader, 1 = last place
+    const trailFactor = packSpread > 50 ? 1 - ((ball.y - highestY) / packSpread) : 0;
 
-    if (moveAndCollideBall(ball, obstacles, courseWidth) > 0) {
+    applyForces(ball, isLeader, trailFactor);
+
+    if (moveAndCollideBall(ball, obstacles, courseWidth, particles) > 0) {
       collisions++;
+    }
+
+    // Stuck detection: track vertical progress, not just speed.
+    // Oscillating balls have non-zero speed but make no net progress.
+    if (ball.lastCheckY === undefined) ball.lastCheckY = ball.y;
+    ball.stuckFrames = (ball.stuckFrames || 0) + 1;
+
+    // Every 30 frames (~0.5s), check if ball made meaningful vertical progress
+    if (ball.stuckFrames >= 30) {
+      const yProgress = Math.abs(ball.y - ball.lastCheckY);
+      if (yProgress < 8) {
+        // Ball hasn't moved — forcefully eject it downward and sideways
+        ball.vx = (Math.random() - 0.5) * 10;
+        ball.vy = BALL.MAX_VELOCITY;
+        // Nudge ball down past the obstacle trapping it
+        ball.y += ball.radius * 2;
+      }
+      ball.lastCheckY = ball.y;
+      ball.stuckFrames = 0;
     }
 
     // Finish line check

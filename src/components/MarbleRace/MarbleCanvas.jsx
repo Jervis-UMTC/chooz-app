@@ -1,6 +1,6 @@
 import { useRef, useEffect, useState, memo } from 'react';
-import { COURSE, CAMERA, COLORS, OBSTACLES } from './MarbleConstants';
-import { createBalls, updateBalls } from './MarblePhysics';
+import { COURSE, CAMERA, COLORS, OBSTACLES, MIXER } from './MarbleConstants';
+import { createBalls, updateBalls, updateMixer } from './MarblePhysics';
 import { generateCourse } from './MarbleObstacles';
 import {
   drawBall,
@@ -9,7 +9,9 @@ import {
   drawWalls,
   drawBackground,
   drawLeaderboard,
-  drawProgressBar
+  drawProgressBar,
+  drawParticle,
+  drawMixer
 } from './MarbleDrawing';
 import { playTick, playWin } from '../../utils/sounds';
 
@@ -23,12 +25,14 @@ const MarbleCanvas = ({ names, racing, onRaceFinish, mode }) => {
   const animFrameRef = useRef(null);
   const ballsRef = useRef([]);
   const obstaclesRef = useRef([]);
+  const particlesRef = useRef([]);
   const cameraYRef = useRef(0);
   const racingRef = useRef(false);
   const modeRef = useRef(mode);
   const finishYRef = useRef(0);
   const firstFinisherRef = useRef(null);
   const allFinishedRef = useRef(false);
+  const mixerRef = useRef({ active: false, startTime: 0 });
   const [size, setSize] = useState({ width: 0, height: 0 });
 
   useEffect(() => { modeRef.current = mode; }, [mode]);
@@ -68,6 +72,8 @@ const MarbleCanvas = ({ names, racing, onRaceFinish, mode }) => {
       finishYRef.current = courseHeight - COURSE.FINISH_LINE_HEIGHT;
       obstaclesRef.current = generateCourse(courseWidth, courseHeight);
       ballsRef.current = createBalls(names, courseWidth);
+      particlesRef.current = [];
+      mixerRef.current = { active: true, startTime: 0 };
     }
 
     if (!racing) {
@@ -128,71 +134,119 @@ const MarbleCanvas = ({ names, racing, onRaceFinish, mode }) => {
 
       // Sort by y so closer balls draw on top
       const sortedBalls = [...balls].sort((a, b) => a.y - b.y);
-      for (const ball of sortedBalls) {
-        drawBall(ctx, ball, cameraY, viewportHeight, ball.id === leaderIndex, size.width);
-      }
 
       // Physics step
       if (racingRef.current) {
-        const { collisions, newFinishers } = updateBalls(
-          balls,
-          obstaclesRef.current,
-          courseWidth,
-          finishYRef.current,
-          timestamp,
-        );
+        const mixer = mixerRef.current;
 
-        // Tick sound on collisions (throttled)
-        if (collisions > 0 && timestamp - lastTickTime > 50) {
-          playTick(0.8 + Math.random() * 0.4);
-          lastTickTime = timestamp;
-        }
+        // Mixer phase: spin balls before releasing
+        if (mixer.active) {
+          if (mixer.startTime === 0) mixer.startTime = timestamp;
+          const elapsed = timestamp - mixer.startTime;
+          const progress = Math.min(1, elapsed / MIXER.DURATION);
 
-        // Handle finishers
-        if (newFinishers.length > 0) {
-          if (!firstFinisherRef.current) {
-            firstFinisherRef.current = newFinishers[0];
-            playWin();
+          updateMixer(balls, courseWidth, timestamp);
 
-            if (modeRef.current === 'first') {
-              racingRef.current = false;
-              onRaceFinish([firstFinisherRef.current]);
+          // Draw mixer circle
+          drawMixer(ctx, courseWidth, cameraY, viewportHeight, timestamp, progress);
+
+          // Draw balls inside mixer
+          for (const ball of sortedBalls) {
+            drawBall(ctx, ball, cameraY, viewportHeight, false, size.width);
+          }
+
+          // Release when time is up
+          if (elapsed >= MIXER.DURATION) {
+            mixer.active = false;
+            // Give all balls a downward push to start the race
+            for (const ball of balls) {
+              ball.vy = 2 + Math.random() * 2;
+              ball.vx = (Math.random() - 0.5) * 3;
             }
           }
-        }
+        } else {
+          // Normal race phase
+          const { collisions, newFinishers } = updateBalls(
+            balls,
+            obstaclesRef.current,
+            courseWidth,
+            finishYRef.current,
+            timestamp,
+            particlesRef.current
+          );
 
-        // Check if all finished (ranked mode)
-        if (modeRef.current === 'ranked' && racingRef.current) {
-          const allDone = balls.every(b => b.finished);
-          if (allDone && !allFinishedRef.current) {
-            allFinishedRef.current = true;
-            racingRef.current = false;
-            const ranked = [...balls].sort((a, b) => a.finishOrder - b.finishOrder);
-            onRaceFinish(ranked);
+          // Update and draw particles behind balls
+          const particles = particlesRef.current;
+          for (let i = particles.length - 1; i >= 0; i--) {
+            const p = particles[i];
+            p.x += p.vx;
+            p.y += p.vy;
+            p.vy += 0.2; // gravity
+            p.life -= 1 / p.maxLife;
+            if (p.life <= 0) {
+              particles.splice(i, 1);
+            } else {
+              drawParticle(ctx, p, cameraY, viewportHeight);
+            }
           }
-        }
 
-        // Camera follow leader
-        if (leaderIndex >= 0) {
-          const targetY = balls[leaderIndex].y - viewportHeight * 0.4;
-          const clampedTarget = Math.max(0, Math.min(targetY, finishYRef.current - viewportHeight + 100));
-          cameraYRef.current += (clampedTarget - cameraYRef.current) * CAMERA.LERP_SPEED;
-        }
+          // Draw Balls
+          for (const ball of sortedBalls) {
+            drawBall(ctx, ball, cameraY, viewportHeight, ball.id === leaderIndex, size.width);
+          }
 
-        // Draw UI Overlays (Leaderboard & Progress)
-        // Ensure UI stays locked to the screen, unaffected by camera transform
-        ctx.restore();
-        ctx.save();
+          // Tick sound on collisions (throttled)
+          if (collisions > 0 && timestamp - lastTickTime > 50) {
+            playTick(0.8 + Math.random() * 0.4);
+            lastTickTime = timestamp;
+          }
 
-        const top5 = sortedBalls.slice(-5).reverse(); // highest Y first
-        drawLeaderboard(ctx, top5, courseWidth, size.width);
+          // Handle finishers
+          if (newFinishers.length > 0) {
+            if (!firstFinisherRef.current) {
+              firstFinisherRef.current = newFinishers[0];
+              playWin();
 
-        const progressY = leaderY > 0 ? leaderY : 0;
-        const totalDist = finishYRef.current - OBSTACLES.FIRST_ROW_Y;
-        const currentDist = progressY - OBSTACLES.FIRST_ROW_Y;
-        const progressPct = Math.max(0, Math.min(1, currentDist / totalDist));
+              if (modeRef.current === 'first') {
+                racingRef.current = false;
+                onRaceFinish([firstFinisherRef.current]);
+              }
+            }
+          }
 
-        drawProgressBar(ctx, progressPct, top5[0], courseWidth, viewportHeight);
+          // Check if all finished (ranked mode)
+          if (modeRef.current === 'ranked' && racingRef.current) {
+            const allDone = balls.every(b => b.finished);
+            if (allDone && !allFinishedRef.current) {
+              allFinishedRef.current = true;
+              racingRef.current = false;
+              const ranked = [...balls].sort((a, b) => a.finishOrder - b.finishOrder);
+              onRaceFinish(ranked);
+            }
+          }
+
+          // Camera follow leader
+          if (leaderIndex >= 0) {
+            const targetY = balls[leaderIndex].y - viewportHeight * 0.4;
+            const clampedTarget = Math.max(0, Math.min(targetY, finishYRef.current - viewportHeight + 100));
+            cameraYRef.current += (clampedTarget - cameraYRef.current) * CAMERA.LERP_SPEED;
+          }
+
+          // Draw UI Overlays (Leaderboard & Progress)
+          // Ensure UI stays locked to the screen, unaffected by camera transform
+          ctx.restore();
+          ctx.save();
+
+          const top5 = sortedBalls.slice(-5).reverse(); // highest Y first
+          drawLeaderboard(ctx, top5, courseWidth, size.width);
+
+          const progressY = leaderY > 0 ? leaderY : 0;
+          const totalDist = finishYRef.current - OBSTACLES.FIRST_ROW_Y;
+          const currentDist = progressY - OBSTACLES.FIRST_ROW_Y;
+          const progressPct = Math.max(0, Math.min(1, currentDist / totalDist));
+
+          drawProgressBar(ctx, progressPct, top5[0], courseWidth, viewportHeight);
+        } // end else (normal race phase)
       }
 
       ctx.restore();

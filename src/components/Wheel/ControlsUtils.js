@@ -6,7 +6,7 @@
  */
 export const parseImportText = (text) => {
   return text
-    .split('\n')
+    .split(/[\r\n,\t]+/)
     .map(name => name.trim())
     .filter(name => name.length > 0);
 };

@@ -2,6 +2,7 @@ import styled from 'styled-components';
 import { motion } from 'framer-motion';
 import { BRAND_COLORS } from '../../utils/colors';
 
+
 /* ── Layout ────────────────────────────── */
 
 export const PageContainer = styled.div`
@@ -136,97 +137,12 @@ export const ControlsPanel = styled(motion.div)`
   gap: 12px;
 `;
 
-export const Label = styled.span`
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+export const Label = styled.div`
+  font-size: 0.7rem;
   color: rgba(255, 255, 255, 0.5);
-  font-weight: 600;
-`;
-
-export const NameListContainer = styled.div`
-  max-height: 200px;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 8px;
-  background: rgba(255, 255, 255, 0.03);
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-
-  &::-webkit-scrollbar { width: 4px; }
-  &::-webkit-scrollbar-thumb {
-    background: rgba(255,255,255,0.15);
-    border-radius: 4px;
-  }
-`;
-
-export const NameItem = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 6px 10px;
-  background: rgba(255, 255, 255, 0.04);
-  border-radius: 8px;
-  font-size: 0.85rem;
-  color: rgba(255, 255, 255, 0.85);
-  gap: 8px;
-
-  &:hover {
-    background: rgba(255, 255, 255, 0.08);
-  }
-`;
-
-export const ColorDot = styled.div`
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: ${props => props.$color};
-  flex-shrink: 0;
-`;
-
-export const RemoveBtn = styled.button`
-  background: none;
-  border: none;
-  color: rgba(255, 255, 255, 0.3);
-  cursor: pointer;
-  padding: 2px;
-  display: flex;
-  transition: color 0.2s;
-  &:hover { color: #ef4444; }
-`;
-
-export const InputRow = styled.div`
-  display: flex;
-  gap: 8px;
-`;
-
-export const NameInput = styled.input`
-  flex: 1;
-  padding: 10px 14px;
-  border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.05);
-  color: white;
-  font-size: 0.9rem;
-  outline: none;
-  transition: border-color 0.2s;
-  &:focus { border-color: ${BRAND_COLORS.orange}; }
-  &::placeholder { color: rgba(255, 255, 255, 0.3); }
-`;
-
-export const AddButton = styled.button`
-  padding: 10px 16px;
-  border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  background: rgba(255, 255, 255, 0.08);
-  color: white;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  transition: all 0.2s;
-  &:hover { background: rgba(255, 255, 255, 0.15); }
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
 `;
 
 /* ── Mode Toggle ────────────────────────────── */
@@ -353,6 +269,15 @@ export const LeaderboardEntry = styled.div`
 export const RankNumber = styled.span`
   min-width: 24px;
   text-align: center;
+`;
+
+export const ColorDot = styled.div`
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: ${props => props.$color || '#fff'};
+  flex-shrink: 0;
+  box-shadow: 0 0 4px rgba(0,0,0,0.3);
 `;
 
 export const ActionButton = styled.button`

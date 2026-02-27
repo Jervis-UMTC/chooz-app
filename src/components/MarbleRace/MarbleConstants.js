@@ -18,8 +18,11 @@ export const BALL = {
   BALL_RESTITUTION: 0.5,
   OVERLAP_PUSH: 0.5,
   STAGGER_ROWS: 5,
-  SUB_STEPS: 3,        // Number of collision checks per frame
-  DRAFTING_BOOST: 0.02 // Downward vy boost when drafting behind another ball
+  SUB_STEPS: 5,         // Increased collision checks per frame to prevent tunneling
+  DRAFTING_BOOST: 0.04, // Slightly increased downward vy boost when trailing close behind
+  LEADER_DRAG: 0.015,   // Wind resistance applied to the leader to prevent runaways
+  CATCHUP_GRAVITY: 1.15,// Gravity multiplier for balls far behind (rubber-banding)
+  TURBULENCE: 0.25,     // Lateral scatter on collision to prevent clumping
 };
 
 export const CAMERA = {
@@ -56,6 +59,19 @@ export const OBSTACLES = {
   TRAPDOOR_CYCLE_TIME: 5000,
   TRAPDOOR_OPEN_TIME: 800,
   TRAPDOOR_SMOOTHING: 0.15,
+  // Pinball Bumper
+  PINBALL_BUMPER_RADIUS: 14,
+  PINBALL_BUMPER_RESTITUTION: 1.8,
+  // Warp Portals
+  BLACK_HOLE_RADIUS: 25,
+  BLACK_HOLE_PULL_RADIUS: 100,
+  BLACK_HOLE_PULL_FORCE: 0.15,
+  WHITE_HOLE_RADIUS: 25,
+  WHITE_HOLE_EJECT_FORCE: 8,
+  // Crossover Ramps
+  CROSSOVER_RAMP_ANGLE: 0.35,
+  // Pinball Lane
+  PINBALL_LANE_BUMPER_COUNT: 5,
 };
 
 /** Zone boundaries as fractions of course height (after start zone). */
@@ -70,6 +86,13 @@ export const ZONES = {
 
 export const GRID = {
   CELL_SIZE: 50,
+};
+
+export const MIXER = {
+  RADIUS: 70,       // Radius of the spinning drum circle
+  CENTER_Y: 90,     // Vertical center of the mixer
+  DURATION: 3000,   // How long to spin before releasing (ms)
+  SPIN_FORCE: 0.45, // Tangential force applied each frame (aggressive tumble)
 };
 
 export const COLORS = {
@@ -94,4 +117,15 @@ export const COLORS = {
   LEADER_GLOW: 'rgba(254, 221, 40, 0.6)',
   FINISH_LINE: '#22c55e',
   FINISH_BANNER: 'rgba(34, 197, 94, 0.15)',
+  // Pinball Bumper
+  PINBALL_BUMPER_BASE: '#ef4444',     // Red core
+  PINBALL_BUMPER_GLOW: '#fca5a5',     // Light red/pink glow
+  PINBALL_BUMPER_SHADOW: 'rgba(220, 38, 38, 0.6)', // Deep red shadow
+  // Warp Portals
+  BLACK_HOLE_CORE: '#000000',
+  BLACK_HOLE_GLOW: 'rgba(168, 85, 247, 0.4)', // Purple glow
+  BLACK_HOLE_ACCRETION: '#d8b4fe',
+  WHITE_HOLE_CORE: '#ffffff',
+  WHITE_HOLE_GLOW: 'rgba(56, 189, 248, 0.4)', // Sky blue glow
+  WHITE_HOLE_RING: '#bae6fd',
 };

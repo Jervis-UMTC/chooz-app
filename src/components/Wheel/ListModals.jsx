@@ -7,12 +7,15 @@ import {
   ModalOverlay,
   Modal,
   ModalTitle,
+} from './Controls.styles';
+
+import {
   NameItem,
-  RemoveButton,
+  RemoveBtn,
   EmptyState,
   ButtonRow,
   IconButton,
-} from './Controls.styles';
+} from '../common/SharedNameControls.styles';
 
 /**
  * Modal dialog for saving the current name list with a custom label.
@@ -85,9 +88,9 @@ export const LoadModal = ({ savedLists, onLoad, onDelete, onClose }) => (
               <span onClick={() => onLoad(list)} style={{ cursor: 'pointer', flex: 1 }}>
                 {list.name} ({list.names.length})
               </span>
-              <RemoveButton onClick={() => onDelete(list)} title="Delete">
+              <RemoveBtn onClick={() => onDelete(list)} title="Delete">
                 <CloseIcon size={10} />
-              </RemoveButton>
+              </RemoveBtn>
             </NameItem>
           ))
         )}

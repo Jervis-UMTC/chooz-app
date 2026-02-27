@@ -1,6 +1,369 @@
 import { BALL, COURSE, OBSTACLES, ZONES } from './MarbleConstants';
 import { getBallRadius } from './MarblePhysics';
 
+
+
+
+
+// ── Helper Row Functions (used by segments) ───────────────────────
+
+const addPegRow = (obstacles, y, usableWidth, margin, courseWidth, minGap, isBouncy, staggerIndex = 0, bias = 0) => {
+  const pegRadius = isBouncy ? OBSTACLES.PEG_RADIUS * 1.5 : OBSTACLES.PEG_RADIUS;
+
+  // Calculate the maximum playable span from wall to wall
+  const leftLimit = COURSE.WALL_THICKNESS + pegRadius;
+  const rightLimit = courseWidth - COURSE.WALL_THICKNESS - pegRadius;
+  const span = rightLimit - leftLimit;
+
+  // Apply lateral bias: shift the entire row left (-1) or right (+1)
+  // Bias shifts by up to 30% of the span, clamped to stay within walls
+  const biasShift = bias * span * 0.15;
+
+  // The gap between peg EDGES must be at least 2.5× ball diameter so balls
+  // can comfortably pass through. minGap already encodes radius * 4 + 18.
+  const ballDiameter = (minGap - 18) / 2; // recover actual ball diameter
+  const safeEdgeGap = Math.max(ballDiameter * 2.5, minGap);
+  const minPegSpacing = safeEdgeGap + pegRadius * 2;
+  const maxCount = Math.max(3, Math.floor(span / minPegSpacing) + 1);
+
+  const isStaggered = staggerIndex % 2 !== 0;
+  const count = isStaggered ? maxCount - 1 : maxCount;
+
+  // The true spacing to evenly distribute `maxCount` pegs across `span`
+  const spacing = span / (maxCount - 1);
+  const offsetX = isStaggered ? spacing / 2 : 0;
+
+  for (let i = 0; i < count; i++) {
+    // Pegs are distributed with bias shift applied
+    const x = leftLimit + offsetX + spacing * i + biasShift;
+    // SKIP pegs that would fall outside the walls instead of clamping
+    // Clamping clusters pegs at the wall edge creating traps
+    if (x < leftLimit || x > rightLimit) continue;
+
+    // Check if it's the very first or very last peg on the non-staggered row, making them wall bouncers
+    const isWallBouncer = !isStaggered && (i === 0 || i === count - 1);
+
+    obstacles.push({
+      type: 'peg',
+      x,
+      y,
+      radius: pegRadius,
+      isBouncy: isWallBouncer ? true : isBouncy,
+    });
+  }
+
+  return pegRadius * 2;
+};
+
+const addFunnelRow = (obstacles, y, usableWidth, margin, openSide, minGap, isSwaying, radius) => {
+  const offset = usableWidth * 0.35;
+  const centerX = openSide === 'left' ? margin + usableWidth / 2 - offset : margin + usableWidth / 2 + offset;
+  const halfWidth = OBSTACLES.FUNNEL_WIDTH / 2;
+
+  // Tighten the funnel gap slightly to force more congestion and shuffling
+  // BUT ensure the mouth is strictly wider than the ball diameter plus collision thickness.
+  // Effective gap = 2 * mouthHalfGap - 2 * thickness, must be > 2 * radius.
+  const desiredGap = (minGap * 0.9) / 2;
+  const safeGap = radius * 2.5 + OBSTACLES.WALL_THICKNESS;
+  const mouthHalfGap = Math.max(desiredGap, safeGap);
+
+  const timeOffset = Math.random() * Math.PI * 2;
+  const speed = 0.002 + Math.random() * 0.002;
+
+  const courseWidth = usableWidth + margin * 2;
+  const minLeft = centerX - halfWidth - 20;
+  const maxRight = centerX + halfWidth + 20;
+  const availableLeft = minLeft - (COURSE.WALL_THICKNESS + minGap);
+  const availableRight = (courseWidth - COURSE.WALL_THICKNESS - minGap) - maxRight;
+
+  let range = usableWidth * 0.15;
+  range = isSwaying ? Math.max(0, Math.min(range, availableLeft, availableRight)) : 0;
+
+  obstacles.push({
+    type: 'funnel_left', x: minLeft, y, x2: centerX - mouthHalfGap, y2: y + OBSTACLES.FUNNEL_HEIGHT,
+    startX: minLeft, startX2: centerX - mouthHalfGap, thickness: OBSTACLES.WALL_THICKNESS, isSwaying, timeOffset, speed, range,
+  });
+
+  obstacles.push({
+    type: 'funnel_right', x: centerX + mouthHalfGap, y: y + OBSTACLES.FUNNEL_HEIGHT, x2: maxRight, y2: y,
+    startX: centerX + mouthHalfGap, startX2: maxRight, thickness: OBSTACLES.WALL_THICKNESS, isSwaying, timeOffset, speed, range,
+  });
+  return OBSTACLES.FUNNEL_HEIGHT;
+};
+
+const addWarpGauntletSegment = (obstacles, startY, usableWidth, margin, courseWidth, minGap, radius, playableEnd) => {
+  let currentY = startY;
+  const centerX = courseWidth / 2;
+
+  // 1. Array of heavy Pinball Bumpers leading into the gravity well
+  const bumperRadius = OBSTACLES.PINBALL_BUMPER_RADIUS;
+
+  // Scale bumper positions to course width instead of hardcoded pixels
+  const innerSpread = Math.min(usableWidth * 0.22, 80);
+  const outerSpread = Math.min(usableWidth * 0.32, 120);
+  const guardSpread = Math.min(usableWidth * 0.16, 60);
+  const rowGap = Math.max(minGap, 60);
+
+  // V-shape or diamond shape of bumpers
+  obstacles.push({ type: 'pinball_bumper', x: centerX - innerSpread, y: currentY, radius: bumperRadius });
+  obstacles.push({ type: 'pinball_bumper', x: centerX + innerSpread, y: currentY, radius: bumperRadius });
+
+  currentY += rowGap;
+  obstacles.push({ type: 'pinball_bumper', x: centerX - outerSpread, y: currentY, radius: bumperRadius });
+  obstacles.push({ type: 'pinball_bumper', x: centerX + outerSpread, y: currentY, radius: bumperRadius });
+
+  // 2. The Black Hole
+  currentY += rowGap + 20;
+  const blackHoleY = currentY;
+
+  // Teleport 400-600px ahead, but NEVER within 400px of the finish line
+  const maxTeleportY = playableEnd - 400;
+  const rawWhiteHoleY = currentY + 400 + Math.random() * 200;
+  const whiteHoleY = Math.min(rawWhiteHoleY, maxTeleportY);
+
+  // Off-center the exit for more dynamic re-entry
+  const exitOffsetX = (Math.random() - 0.5) * usableWidth * 0.5;
+  const wallPad = COURSE.WALL_THICKNESS + 20;
+  const exitX = Math.max(wallPad, Math.min(courseWidth - wallPad, centerX + exitOffsetX));
+
+  obstacles.push({
+    type: 'black_hole',
+    x: centerX,
+    y: blackHoleY,
+    exitX,
+    exitY: whiteHoleY,
+    angle: 0
+  });
+
+  // 3. The White Hole (placed far ahead, doesn't consume height here)
+  obstacles.push({
+    type: 'white_hole',
+    x: exitX,
+    y: whiteHoleY,
+    angle: 0
+  });
+
+  // 4. A final row of bumpers guarding the Black Hole
+  currentY += rowGap + 20;
+  obstacles.push({ type: 'pinball_bumper', x: centerX - guardSpread, y: currentY, radius: bumperRadius });
+  obstacles.push({ type: 'pinball_bumper', x: centerX + guardSpread, y: currentY, radius: bumperRadius });
+
+  return (currentY + rowGap) - startY;
+};
+
+const addSliderRow = (obstacles, y, usableWidth, courseWidth, minGap) => {
+  const sliderWidth = usableWidth * (minGap < 50 ? 0.6 : 0.4);
+  const height = OBSTACLES.BUMPER_HEIGHT + 4;
+  const minX = COURSE.WALL_THICKNESS + minGap;
+  const maxX = Math.max(minX + 10, courseWidth - COURSE.WALL_THICKNESS - sliderWidth - minGap);
+  const range = (maxX - minX) / 2;
+  const startX = minX + range;
+
+  obstacles.push({
+    type: 'slider', x: startX, y, width: sliderWidth, height, startX, range,
+    timeOffset: Math.random() * Math.PI * 2, speed: 0.0015 + Math.random() * 0.0015, vx: 0,
+  });
+  return height;
+};
+
+
+// ── Segment Generators ───────────────────────
+
+/** 0a. Crossover Ramps: Diagonal deflectors that force balls across the track */
+const addCrossoverSegment = (obstacles, startY, usableWidth, margin, courseWidth, minGap, radius) => {
+  let currentY = startY;
+  const rampHeight = 80;
+  const direction = Math.random() < 0.5 ? 1 : -1; // 1 = left-to-right, -1 = right-to-left
+
+  // Ramps start well INSIDE the track (25% from edge) to avoid wall pockets
+  const innerPad = courseWidth * 0.25;
+  const startSide = direction === 1 ? innerPad : courseWidth - innerPad;
+  const endSide = courseWidth / 2 + direction * (courseWidth * 0.2);
+
+  // First ramp: diagonal deflector pushing balls toward the opposite side
+  obstacles.push({
+    type: 'funnel_left',
+    x: Math.min(startSide, endSide), y: currentY,
+    x2: Math.max(startSide, endSide), y2: currentY + rampHeight,
+    thickness: OBSTACLES.WALL_THICKNESS + 2,
+  });
+
+  currentY += rampHeight + minGap * 0.6;
+
+  // Second ramp: goes the opposite direction to complete the crossover
+  const startSide2 = courseWidth - innerPad * (direction === 1 ? 0.7 : 1.3);
+  const endSide2 = courseWidth / 2 - direction * (courseWidth * 0.2);
+
+  obstacles.push({
+    type: 'funnel_right',
+    x: Math.min(startSide2, endSide2), y: currentY + rampHeight,
+    x2: Math.max(startSide2, endSide2), y2: currentY,
+    thickness: OBSTACLES.WALL_THICKNESS + 2,
+  });
+
+  currentY += rampHeight + minGap * 0.4;
+
+  // Scatter pegs below to amplify chaos after the crossover
+  const h = addPegRow(obstacles, currentY, usableWidth, margin, courseWidth, minGap, false, 0, -direction * 0.6);
+  currentY += h + minGap * 0.5;
+
+  return currentY - startY;
+};
+
+/** 0b. Pinball Lane: Diagonal line of pinball bumpers forcing cross-track movement */
+const addPinballLaneSegment = (obstacles, startY, usableWidth, margin, courseWidth, minGap, radius) => {
+  let currentY = startY;
+  const bumperRadius = OBSTACLES.PINBALL_BUMPER_RADIUS;
+  const count = OBSTACLES.PINBALL_LANE_BUMPER_COUNT;
+  const direction = Math.random() < 0.5 ? 1 : -1; // 1 = top-left to bottom-right
+
+  const wallPad = COURSE.WALL_THICKNESS + bumperRadius + 10;
+  const leftX = wallPad;
+  const rightX = courseWidth - wallPad;
+  const verticalSpacing = Math.max(minGap, 55);
+
+  for (let i = 0; i < count; i++) {
+    const t = i / (count - 1); // 0 to 1
+    const x = direction === 1
+      ? leftX + t * (rightX - leftX)
+      : rightX - t * (rightX - leftX);
+    // Add slight random jitter to prevent perfect diagonal (more chaotic)
+    const jitterX = (Math.random() - 0.5) * 20;
+    const jitterY = (Math.random() - 0.5) * 10;
+
+    obstacles.push({
+      type: 'pinball_bumper',
+      x: Math.max(wallPad, Math.min(courseWidth - wallPad, x + jitterX)),
+      y: currentY + jitterY,
+      radius: bumperRadius,
+    });
+    currentY += verticalSpacing;
+  }
+
+  return currentY - startY;
+};
+
+/** 1. Plinko Drop Segment: Dense grid of standard pegs to scramble the pack */
+const addPlinkoSegment = (obstacles, startY, usableWidth, margin, courseWidth, minGap, radius) => {
+  let currentY = startY;
+  const rows = 4 + Math.floor(Math.random() * 3); // 4-6 rows
+  // Even vertical spacing: ball diameter * 3 ensures comfortable diagonal passage
+  const verticalSpacing = Math.max(radius * 6, minGap * 1.2) + 10;
+
+  // Alternating bias creates a slalom effect — balls are pushed side to side
+  const biasDirection = Math.random() < 0.5 ? 1 : -1;
+  for (let i = 0; i < rows; i++) {
+    const bias = (i % 2 === 0 ? biasDirection : -biasDirection) * 0.5;
+    const h = addPegRow(obstacles, currentY, usableWidth, margin, courseWidth, minGap, false, i, bias);
+    currentY += h + verticalSpacing;
+  }
+  return currentY - startY; // Height consumed
+};
+
+/** 2. Chaos Zone Segment: Spinners, Bouncy Pegs, and the new Pinball Bumpers */
+const addChaosSegment = (obstacles, startY, usableWidth, margin, courseWidth, minGap, radius) => {
+  let currentY = startY;
+
+  // A Spinner Ring
+  const ringRadius = OBSTACLES.SPINNER_RING_RADIUS;
+  const spinnerX = margin + usableWidth / 2 + (Math.random() - 0.5) * usableWidth * 0.3;
+  obstacles.push({
+    type: 'spinner_ring', id: `ring_${currentY}`, x: spinnerX, y: currentY + ringRadius, radius: ringRadius, angle: 0,
+    angularVelocity: (Math.random() < 0.5 ? 1 : -1) * 0.03,
+  });
+  for (let i = 0; i < OBSTACLES.SPINNER_PEG_COUNT; i++) {
+    obstacles.push({ type: 'spinner_peg', ringId: `ring_${currentY}`, x: spinnerX, y: currentY + ringRadius, radius: OBSTACLES.SPINNER_PEG_RADIUS, angleOffset: (i / OBSTACLES.SPINNER_PEG_COUNT) * Math.PI * 2 });
+  }
+
+  // Pinball Bumpers flanking the spinner, ensuring they don't overlap the spinner or walls
+  const bumperRadius = OBSTACLES.PINBALL_BUMPER_RADIUS;
+  const leftBumperX = Math.max(COURSE.WALL_THICKNESS + bumperRadius + 10, margin + 20);
+  const rightBumperX = Math.min(courseWidth - COURSE.WALL_THICKNESS - bumperRadius - 10, courseWidth - margin - 20);
+
+  // Nudge bumpers if they are too close to the spinner
+  const safeDist = ringRadius + bumperRadius + minGap;
+  const actualLeftBumperX = Math.min(leftBumperX, spinnerX - safeDist);
+  const actualRightBumperX = Math.max(rightBumperX, spinnerX + safeDist);
+
+  obstacles.push({ type: 'pinball_bumper', x: actualLeftBumperX, y: currentY + ringRadius + 20, radius: bumperRadius });
+  obstacles.push({ type: 'pinball_bumper', x: actualRightBumperX, y: currentY + ringRadius + 20, radius: bumperRadius });
+
+  currentY += ringRadius * 2 + 40;
+
+  // Finish segment with a row of bouncy pegs
+  const h = addPegRow(obstacles, currentY, usableWidth, margin, courseWidth, minGap, true, 0);
+
+  return (currentY + h) - startY;
+};
+
+
+
+/** 4. Sieve Segment: A trapdoor funnel or double funnels to create a bottleneck */
+const addSieveSegment = (obstacles, startY, usableWidth, margin, courseWidth, minGap, radius) => {
+  let currentY = startY;
+  const height = OBSTACLES.FUNNEL_HEIGHT;
+
+  if (Math.random() > 0.5) {
+    // Trapdoor Funnel
+    const centerX = courseWidth / 2;
+    // Ensure the mouth safely passes the ball: accounts for collision thickness
+    const safeGap = radius * 2.5 + OBSTACLES.WALL_THICKNESS;
+    const desiredGap = (minGap * 0.9) / 2;
+    const mouthHalfGap = Math.max(desiredGap, safeGap);
+
+    const blockWidth = mouthHalfGap * 2 + 30;
+    const startX = centerX - blockWidth / 2;
+
+    // Ensure the trapdoor doesn't open past the right wall
+    const availableRight = (courseWidth - COURSE.WALL_THICKNESS) - (startX + blockWidth);
+    const openRange = Math.min(blockWidth + 50, availableRight - 5);
+
+    obstacles.push({ type: 'trapdoor_block', x: startX, y: currentY + height + 5, width: blockWidth, height: 15, startX, openRange, timeOffset: Math.random() * 200 });
+    obstacles.push({ type: 'funnel_left', x: centerX - OBSTACLES.FUNNEL_WIDTH / 2 - 20, y: currentY, x2: centerX - mouthHalfGap, y2: currentY + height, thickness: OBSTACLES.WALL_THICKNESS });
+    obstacles.push({ type: 'funnel_right', x: centerX + mouthHalfGap, y: currentY + height, x2: centerX + OBSTACLES.FUNNEL_WIDTH / 2 + 20, y2: currentY, thickness: OBSTACLES.WALL_THICKNESS });
+    currentY += height + 35;
+  } else {
+    // Double Funnels
+    const qW = usableWidth / 4;
+    const spread = OBSTACLES.DOUBLE_FUNNEL_SPREAD / 4;
+    // Ensure the mouth safely passes the ball: accounts for collision thickness
+    const safeGap = radius * 2.5 + OBSTACLES.WALL_THICKNESS;
+    const desiredGap = (minGap * 0.9) / 2;
+    const mouthHalfGap = Math.max(desiredGap, safeGap);
+
+    const leftC = margin + qW;
+    obstacles.push({ type: 'funnel_left', x: leftC - spread - 15, y: currentY, x2: leftC - mouthHalfGap, y2: currentY + height, thickness: OBSTACLES.WALL_THICKNESS });
+    obstacles.push({ type: 'funnel_right', x: leftC + mouthHalfGap, y: currentY + height, x2: leftC + spread + 15, y2: currentY, thickness: OBSTACLES.WALL_THICKNESS });
+
+    const rightC = margin + qW * 3;
+    obstacles.push({ type: 'funnel_left', x: rightC - spread - 15, y: currentY, x2: rightC - mouthHalfGap, y2: currentY + height, thickness: OBSTACLES.WALL_THICKNESS });
+    obstacles.push({ type: 'funnel_right', x: rightC + mouthHalfGap, y: currentY + height, x2: rightC + spread + 15, y2: currentY, thickness: OBSTACLES.WALL_THICKNESS });
+    currentY += height + 10;
+  }
+
+  return currentY - startY;
+};
+
+/** 5. Funnel Cascade: Series of swaying funnels dropping onto a slider */
+const addFunnelCascadeSegment = (obstacles, startY, usableWidth, margin, courseWidth, minGap, radius) => {
+  let currentY = startY;
+  const gapScale = Math.max(0.4, minGap / 74);
+
+  let h = addFunnelRow(obstacles, currentY, usableWidth, margin, 'left', minGap, true, radius);
+  currentY += h + (minGap * gapScale) + 10;
+
+  h = addFunnelRow(obstacles, currentY, usableWidth, margin, 'right', minGap, true, radius);
+  currentY += h + (minGap * gapScale) + 20;
+
+  h = addSliderRow(obstacles, currentY, usableWidth, courseWidth, minGap);
+  currentY += h;
+
+  return currentY - startY;
+};
+
+
+// ── Main Generation Loop ───────────────────────
+
 const getZone = (y, playableStart, playableHeight) => {
   const progress = (y - playableStart) / playableHeight;
   if (progress < ZONES.TOP_END) return 'top';
@@ -8,17 +371,12 @@ const getZone = (y, playableStart, playableHeight) => {
   return 'bot';
 };
 
-const getZoneSpacing = (zone) => {
-  if (zone === 'top') return ZONES.TOP_SPACING;
-  if (zone === 'mid') return ZONES.MID_SPACING;
-  return ZONES.BOT_SPACING;
-};
-
-const pickRowType = (zone, lastType) => {
+const pickSegment = (zone, lastSegment) => {
+  // Pools of segment generators for each zone
   const pools = {
-    top: ['peg', 'bouncy_peg', 'peg', 'baffle', 'zigzag', 'slider'],
-    mid: ['bouncy_peg', 'zigzag', 'zigzag', 'spinner', 'funnel', 'swaying_funnel', 'trapdoor_funnel', 'baffle', 'slider'],
-    bot: ['funnel', 'swaying_funnel', 'trapdoor_funnel', 'double_funnel', 'bouncy_peg', 'zigzag', 'slider'],
+    top: [addPlinkoSegment, addSieveSegment, addCrossoverSegment],
+    mid: [addChaosSegment, addFunnelCascadeSegment, addPlinkoSegment, addWarpGauntletSegment, addCrossoverSegment, addPinballLaneSegment],
+    bot: [addWarpGauntletSegment, addChaosSegment, addFunnelCascadeSegment, addPinballLaneSegment],
   };
 
   const pool = pools[zone];
@@ -27,7 +385,7 @@ const pickRowType = (zone, lastType) => {
   do {
     pick = pool[Math.floor(Math.random() * pool.length)];
     attempts++;
-  } while (pick === lastType && attempts < 6);
+  } while (pick === lastSegment && attempts < 4);
 
   return pick;
 };
@@ -42,403 +400,36 @@ export const generateCourse = (courseWidth, courseHeight, ballCount = 50) => {
 
   // Dynamic gap sizing based on the actual physical radius of the balls
   const radius = getBallRadius(ballCount);
-  const minGap = radius * 4 + 18; // Scales down for 50 small balls, stays large for 2 huge balls
+  const minGap = radius * 4 + 18;
+  const gapScale = Math.max(0.4, minGap / 74);
 
   let currentY = playableStart;
-  let lastType = '';
-  let openSide = Math.random() < 0.5 ? 'left' : 'right';
+  let lastSegment = null;
 
   while (currentY < playableEnd) {
     const zone = getZone(currentY, playableStart, playableHeight);
-    const rowType = pickRowType(zone, lastType);
-    lastType = rowType;
+    const segmentFn = pickSegment(zone, lastSegment);
+    lastSegment = segmentFn;
 
-    let rowHeight = 0;
+    // To prevent segments from placing obstacles past the finish line, we generate them into a temporary array
+    const tempObstacles = [];
+    const heightConsumed = segmentFn(tempObstacles, currentY, usableWidth, margin, courseWidth, minGap, radius, playableEnd);
 
-    switch (rowType) {
-      case 'peg':
-        rowHeight = addPegRow(obstacles, currentY, usableWidth, margin, openSide, courseWidth, minGap, false);
-        break;
-      case 'bouncy_peg':
-        rowHeight = addPegRow(obstacles, currentY, usableWidth, margin, openSide, courseWidth, minGap, true);
-        break;
-      case 'baffle':
-        rowHeight = addBaffleRow(obstacles, currentY, usableWidth, margin, openSide, courseWidth, minGap);
-        break;
-      case 'funnel':
-        rowHeight = addFunnelRow(obstacles, currentY, usableWidth, margin, openSide, minGap, false);
-        break;
-      case 'swaying_funnel':
-        rowHeight = addFunnelRow(obstacles, currentY, usableWidth, margin, openSide, minGap, true);
-        break;
-      case 'trapdoor_funnel':
-        rowHeight = addTrapdoorFunnelRow(obstacles, currentY, usableWidth, margin, openSide, minGap);
-        break;
-      case 'zigzag':
-        rowHeight = addZigzagRow(obstacles, currentY, usableWidth, margin, openSide, courseWidth, minGap);
-        break;
-      case 'slider':
-        rowHeight = addSliderRow(obstacles, currentY, usableWidth, margin, courseWidth, minGap);
-        break;
-      case 'spinner':
-        rowHeight = addSpinnerRow(obstacles, currentY, usableWidth, margin, minGap);
-        break;
-      case 'double_funnel':
-        rowHeight = addDoubleFunnelRow(obstacles, currentY, usableWidth, margin, minGap);
-        break;
-      default:
-        rowHeight = addPegRow(obstacles, currentY, usableWidth, margin, openSide, courseWidth, minGap, false);
+    // Only add obstacles that are strictly above the playableEnd line
+    for (const obs of tempObstacles) {
+      const bottomY = obs.y2 || (obs.y + (obs.height || obs.radius || OBSTACLES.FUNNEL_HEIGHT));
+      if (bottomY < playableEnd) {
+        obstacles.push(obs);
+      }
     }
 
-    // Alternate the open side for the next row
-    openSide = openSide === 'left' ? 'right' : 'left';
+    // Add zone-appropriate padding before the next segment
+    const spacing = zone === 'top' ? ZONES.TOP_SPACING : zone === 'mid' ? ZONES.MID_SPACING : ZONES.BOT_SPACING;
+    // Base padding should always be at least minGap * 1.5 to avoid segment overlap squeezing
+    const padding = minGap * 1.5 + (spacing.base * gapScale * 0.5) + (Math.random() * spacing.variance * gapScale);
 
-    const spacing = getZoneSpacing(zone);
-
-    // Scale vertical spacing based on the ball radius (minGap factor)
-    // A standard 14px ball has minGap ~74. A 5px ball has minGap ~38.
-    // So 38 / 74 is roughly 0.5. Smaller balls get much tighter vertical packing!
-    const gapScale = Math.max(0.4, minGap / 74);
-
-    currentY += rowHeight + (minGap * gapScale) + (spacing.base * gapScale * 0.4) + (Math.random() * spacing.variance * gapScale);
+    currentY += heightConsumed + padding;
   }
 
   return obstacles;
-};
-
-const addPegRow = (obstacles, y, usableWidth, margin, openSide, courseWidth, minGap, isBouncy) => {
-  const pegRadius = isBouncy ? OBSTACLES.PEG_RADIUS * 1.5 : OBSTACLES.PEG_RADIUS;
-  const minPegSpacing = minGap + pegRadius * 2;
-  const maxPegs = Math.floor(usableWidth / minPegSpacing);
-
-  // Dramatically increase max pegs allowed if we are using small balls
-  const maxAllowed = minGap < 50 ? 12 : OBSTACLES.PEGS_PER_ROW_MAX;
-
-  const count = Math.max(3, Math.min(
-    OBSTACLES.PEGS_PER_ROW_MIN + Math.floor(Math.random() * (maxAllowed - OBSTACLES.PEGS_PER_ROW_MIN)),
-    maxPegs,
-  ));
-
-  const spacing = usableWidth / (count + 1);
-  let maxOffsetY = 0;
-
-  for (let i = 0; i < count; i++) {
-    const x = margin + spacing * (i + 1);
-    const offsetY = (Math.random() - 0.5) * 8;
-    maxOffsetY = Math.max(maxOffsetY, offsetY);
-    obstacles.push({
-      type: 'peg',
-      x,
-      y: y + offsetY,
-      radius: pegRadius,
-      isBouncy,
-    });
-  }
-
-  // Add mandatory Wall Bouncers to destroy edge tunnels
-  obstacles.push({
-    type: 'peg',
-    x: COURSE.WALL_THICKNESS + pegRadius,
-    y: y + (Math.random() - 0.5) * 8,
-    radius: pegRadius,
-    isBouncy: true, // Always bouncy so they throw wall-riders back into play
-  });
-
-  obstacles.push({
-    type: 'peg',
-    x: courseWidth - COURSE.WALL_THICKNESS - pegRadius,
-    y: y + (Math.random() - 0.5) * 8,
-    radius: pegRadius,
-    isBouncy: true,
-  });
-
-  return pegRadius * 2 + maxOffsetY;
-};
-
-const addBaffleRow = (obstacles, y, usableWidth, margin, openSide, courseWidth, minGap) => {
-  // Baffles stretch further across when balls are small, preventing easy straight drops
-  const maxSpan = minGap < 50 ? 0.85 : 0.65;
-  const maxWidth = usableWidth * maxSpan;
-  const width = 80 + Math.random() * (maxWidth - 80);
-  const tilt = width * 0.25; // Steeper downward slope to prevent crawling
-
-  const isLeftWall = openSide === 'right'; // If right is open, baffle anchors left
-  // Flush with true wall bounds
-  const startX = isLeftWall ? COURSE.WALL_THICKNESS : courseWidth - COURSE.WALL_THICKNESS;
-
-  // Calculate ending X based on startX and width
-  const endX = isLeftWall ? startX + width : startX - width;
-  const type = isLeftWall ? 'zigzag_right' : 'zigzag_left';
-
-  // 40% chance for a shortcut gap
-  if (width > 120 && Math.random() < 0.4) {
-    const gapWidth = minGap * 1.2;
-    // ensure gap doesn't start too close to wall or end
-    const safeZone = width - gapWidth - 40;
-    const gapStartDist = 20 + Math.random() * safeZone;
-
-    const gapStartX = isLeftWall ? startX + gapStartDist : startX - gapStartDist;
-    const gapEndX = isLeftWall ? gapStartX + gapWidth : gapStartX - gapWidth;
-
-    const getShelfY = (xPos) => y + (Math.abs(xPos - startX) / width) * tilt;
-
-    obstacles.push({
-      type,
-      x: startX, y: getShelfY(startX),
-      x2: gapStartX, y2: getShelfY(gapStartX),
-      thickness: OBSTACLES.WALL_THICKNESS + 2,
-    });
-
-    obstacles.push({
-      type,
-      x: gapEndX, y: getShelfY(gapEndX),
-      x2: endX, y2: getShelfY(endX),
-      thickness: OBSTACLES.WALL_THICKNESS + 2,
-    });
-  } else {
-    obstacles.push({
-      type,
-      x: startX, y: y,
-      x2: endX, y2: y + tilt,
-      thickness: OBSTACLES.WALL_THICKNESS + 2,
-    });
-  }
-
-  return tilt;
-};
-
-const addFunnelRow = (obstacles, y, usableWidth, margin, openSide, minGap, isSwaying) => {
-  const offset = usableWidth * 0.15;
-  const centerX = openSide === 'left'
-    ? margin + usableWidth / 2 - offset
-    : margin + usableWidth / 2 + offset;
-
-  const halfWidth = OBSTACLES.FUNNEL_WIDTH / 2;
-  const mouthHalfGap = minGap / 2 + 6; // slightly wider mouth to prevent jamming
-
-  const timeOffset = Math.random() * Math.PI * 2;
-  const speed = 0.002 + Math.random() * 0.002;
-  const range = usableWidth * 0.15;
-
-  obstacles.push({
-    type: 'funnel_left',
-    x: centerX - halfWidth - 20, y,
-    x2: centerX - mouthHalfGap, y2: y + OBSTACLES.FUNNEL_HEIGHT,
-    startX: centerX - halfWidth - 20, startX2: centerX - mouthHalfGap,
-    thickness: OBSTACLES.WALL_THICKNESS,
-    isSwaying, timeOffset, speed, range,
-  });
-
-  obstacles.push({
-    type: 'funnel_right',
-    x: centerX + mouthHalfGap, y: y + OBSTACLES.FUNNEL_HEIGHT,
-    x2: centerX + halfWidth + 20, y2: y,
-    startX: centerX + mouthHalfGap, startX2: centerX + halfWidth + 20,
-    thickness: OBSTACLES.WALL_THICKNESS,
-    isSwaying, timeOffset, speed, range,
-  });
-
-  return OBSTACLES.FUNNEL_HEIGHT;
-};
-
-const addZigzagRow = (obstacles, y, usableWidth, margin, openSide, courseWidth, minGap) => {
-  // If gaps are tiny (lots of balls), tighten the shelves to prevent massive free-falling tunnels
-  const verticalGap = minGap < 50 ? OBSTACLES.ZIGZAG_SHELF_GAP * 0.7 : OBSTACLES.ZIGZAG_SHELF_GAP;
-  const shelfSpan = minGap < 50 ? usableWidth * 0.85 : usableWidth * 0.70;
-
-  const tilt = OBSTACLES.ZIGZAG_SHELF_ANGLE * verticalGap;
-  const gapWidth = minGap * 1.5;
-
-  const addShelf = (isLeftWall, yOff) => {
-    // Start flush against structural course walls
-    const startX = isLeftWall ? COURSE.WALL_THICKNESS : courseWidth - COURSE.WALL_THICKNESS;
-    const endX = isLeftWall ? startX + shelfSpan : startX - shelfSpan;
-    const type = isLeftWall ? 'zigzag_right' : 'zigzag_left';
-
-    const getShelfY = (xPos) => yOff + (Math.abs(xPos - startX) / shelfSpan) * tilt;
-
-    if (Math.random() < 0.6) {
-      const minGapX = isLeftWall ? startX + 30 : endX + 30;
-      const maxGapX = isLeftWall ? endX - gapWidth - 30 : startX - gapWidth - 30;
-
-      const gapStartX = minGapX + Math.random() * (maxGapX - minGapX);
-      const gapEndX = gapStartX + gapWidth;
-
-      obstacles.push({
-        type,
-        x: startX, y: getShelfY(startX),
-        x2: isLeftWall ? gapStartX : gapEndX, y2: getShelfY(isLeftWall ? gapStartX : gapEndX),
-        thickness: OBSTACLES.WALL_THICKNESS + 2,
-      });
-      obstacles.push({
-        type,
-        x: isLeftWall ? gapEndX : gapStartX, y: getShelfY(isLeftWall ? gapEndX : gapStartX),
-        x2: endX, y2: getShelfY(endX),
-        thickness: OBSTACLES.WALL_THICKNESS + 2,
-      });
-    } else {
-      obstacles.push({
-        type,
-        x: startX, y: getShelfY(startX),
-        x2: endX, y2: getShelfY(endX),
-        thickness: OBSTACLES.WALL_THICKNESS + 2,
-      });
-    }
-  };
-
-  if (openSide === 'left') {
-    addShelf(true, y);
-    addShelf(false, y + verticalGap);
-  } else {
-    addShelf(false, y);
-    addShelf(true, y + verticalGap);
-  }
-
-  return verticalGap + tilt;
-};
-
-const addSpinnerRow = (obstacles, y, usableWidth, margin, minGap) => {
-  const centerX = margin + usableWidth / 2 + (Math.random() - 0.5) * usableWidth * 0.15;
-  const pegRadius = OBSTACLES.SPINNER_PEG_RADIUS;
-  const ringRadius = OBSTACLES.SPINNER_RING_RADIUS;
-
-  const circumference = 2 * Math.PI * ringRadius;
-  const maxPegs = Math.floor(circumference / (minGap + pegRadius * 2));
-  const pegCount = Math.min(OBSTACLES.SPINNER_PEG_COUNT, Math.max(3, maxPegs));
-
-  const startAngle = Math.random() * Math.PI * 2;
-
-  obstacles.push({
-    type: 'spinner_ring',
-    id: `ring_${y}`,
-    x: centerX, y,
-    radius: ringRadius,
-    angle: 0,
-    angularVelocity: (Math.random() < 0.5 ? 1 : -1) * (0.02 + Math.random() * 0.02),
-  });
-
-  for (let i = 0; i < pegCount; i++) {
-    const angleOffset = startAngle + (i / pegCount) * Math.PI * 2;
-    obstacles.push({
-      type: 'spinner_peg',
-      ringId: `ring_${y}`,
-      x: centerX + Math.cos(angleOffset) * ringRadius,
-      y: y + Math.sin(angleOffset) * ringRadius,
-      radius: pegRadius,
-      angleOffset,
-    });
-  }
-
-  return ringRadius + pegRadius;
-};
-
-const addDoubleFunnelRow = (obstacles, y, usableWidth, margin, minGap) => {
-  const height = OBSTACLES.DOUBLE_FUNNEL_HEIGHT;
-  const quarterWidth = usableWidth / 4;
-  const halfSpread = OBSTACLES.DOUBLE_FUNNEL_SPREAD / 4;
-  const mouthHalfGap = minGap / 2 + 4;
-
-  const leftCenter = margin + quarterWidth;
-  obstacles.push({
-    type: 'funnel_left',
-    x: leftCenter - halfSpread - 15, y,
-    x2: leftCenter - mouthHalfGap, y2: y + height,
-    thickness: OBSTACLES.WALL_THICKNESS,
-  });
-  obstacles.push({
-    type: 'funnel_right',
-    x: leftCenter + mouthHalfGap, y: y + height,
-    x2: leftCenter + halfSpread + 15, y2: y,
-    thickness: OBSTACLES.WALL_THICKNESS,
-  });
-
-  const rightCenter = margin + quarterWidth * 3;
-  obstacles.push({
-    type: 'funnel_left',
-    x: rightCenter - halfSpread - 15, y,
-    x2: rightCenter - mouthHalfGap, y2: y + height,
-    thickness: OBSTACLES.WALL_THICKNESS,
-  });
-  obstacles.push({
-    type: 'funnel_right',
-    x: rightCenter + mouthHalfGap, y: y + height,
-    x2: rightCenter + halfSpread + 15, y2: y,
-    thickness: OBSTACLES.WALL_THICKNESS,
-  });
-
-  return height;
-};
-
-const addTrapdoorFunnelRow = (obstacles, y, usableWidth, margin, openSide, minGap) => {
-  const height = OBSTACLES.FUNNEL_HEIGHT;
-  const offset = usableWidth * 0.15;
-  const centerX = openSide === 'left'
-    ? margin + usableWidth / 2 - offset
-    : margin + usableWidth / 2 + offset;
-
-  const halfWidth = OBSTACLES.FUNNEL_WIDTH / 2;
-  const mouthHalfGap = minGap / 2 + 6;
-
-  // The flat, horizontal slider block directly under the mouth
-  const blockWidth = mouthHalfGap * 2 + 30;
-  const blockHeight = 15;
-  const blockY = y + height + 5;
-
-  obstacles.push({
-    type: 'trapdoor_block',
-    x: centerX - blockWidth / 2,
-    y: blockY,
-    width: blockWidth,
-    height: blockHeight,
-    startX: centerX - blockWidth / 2,
-    openRange: blockWidth + 50, // Distance to slide out of the way
-    timeOffset: Math.random() * 200,
-  });
-
-  obstacles.push({
-    type: 'funnel_left',
-    x: centerX - halfWidth - 20, y,
-    x2: centerX - mouthHalfGap, y2: y + height,
-    thickness: OBSTACLES.WALL_THICKNESS,
-  });
-
-  obstacles.push({
-    type: 'funnel_right',
-    x: centerX + mouthHalfGap, y: y + height,
-    x2: centerX + halfWidth + 20, y2: y,
-    thickness: OBSTACLES.WALL_THICKNESS,
-  });
-
-  return height + blockHeight + 30;
-};
-
-const addSliderRow = (obstacles, y, usableWidth, margin, courseWidth, minGap) => {
-  // Make the slider fatter when balls are smaller so they can't just slip by
-  const slideWidthRatio = minGap < 50 ? 0.6 : 0.4;
-  const sliderWidth = usableWidth * slideWidthRatio;
-  const height = OBSTACLES.BUMPER_HEIGHT + 4;
-
-  // Sweep back and forth across a restricted range so it doesn't clip into walls
-  const minX = COURSE.WALL_THICKNESS + minGap;
-  const maxX = courseWidth - COURSE.WALL_THICKNESS - sliderWidth - minGap;
-  const range = (maxX - minX) / 2;
-  const startX = minX + range; // Center point of the sine wave
-
-  const timeOffset = Math.random() * Math.PI * 2;
-  const speed = 0.0015 + Math.random() * 0.0015;
-
-  obstacles.push({
-    type: 'slider',
-    x: startX,
-    y: y,
-    width: sliderWidth,
-    height: height,
-    startX: startX,
-    range: range,
-    timeOffset: timeOffset,
-    speed: speed,
-    vx: 0,
-  });
-
-  return height;
 };

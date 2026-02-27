@@ -1,4 +1,4 @@
-import { COLORS, OBSTACLES, COURSE } from './MarbleConstants';
+import { COLORS, OBSTACLES, COURSE, MIXER } from './MarbleConstants';
 
 /**
  * Truncates text to fit within maxWidth.
@@ -68,6 +68,30 @@ export const drawBall = (ctx, ball, cameraY, viewportHeight, isLeader, viewportW
 
   ctx.fillText(label, ball.x, screenY + ball.radius + fontSize + 2);
 
+  ctx.restore();
+};
+
+/**
+ * Draws a fading spark particle.
+ */
+export const drawParticle = (ctx, particle, cameraY, viewportHeight) => {
+  const screenY = particle.y - cameraY;
+  if (screenY < -10 || screenY > viewportHeight + 10) return;
+
+  ctx.save();
+  ctx.globalAlpha = Math.max(0, particle.life);
+  ctx.beginPath();
+  const radius = Math.max(0.5, 4 * Math.sqrt(particle.life));
+  ctx.arc(particle.x, screenY, radius, 0, Math.PI * 2);
+
+  if (particle.color === '#4ade80') {
+    // Give green booster sparks a slight glow
+    ctx.shadowColor = particle.color;
+    ctx.shadowBlur = 4;
+  }
+
+  ctx.fillStyle = particle.color;
+  ctx.fill();
   ctx.restore();
 };
 
@@ -200,6 +224,126 @@ const drawSlider = (ctx, obstacle, screenY) => {
   ctx.fillRect(obstacle.x, screenY + height, width, 4);
 };
 
+
+
+
+/**
+ * Draws a glowing Pinball Bumper.
+ */
+const drawPinballBumper = (ctx, obstacle, screenY) => {
+  const { x, radius } = obstacle;
+
+  // Outer glow
+  ctx.shadowColor = COLORS.PINBALL_BUMPER_GLOW;
+  ctx.shadowBlur = 12;
+
+  // Main body
+  const grad = ctx.createRadialGradient(
+    x - radius * 0.2, screenY - radius * 0.2, radius * 0.1,
+    x, screenY, radius
+  );
+  grad.addColorStop(0, '#fff'); // Hot white center
+  grad.addColorStop(0.3, COLORS.PINBALL_BUMPER_GLOW);
+  grad.addColorStop(1, COLORS.PINBALL_BUMPER_BASE);
+
+  ctx.beginPath();
+  ctx.arc(x, screenY, radius, 0, Math.PI * 2);
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  ctx.shadowBlur = 0;
+
+  // Inner ring detail
+  ctx.beginPath();
+  ctx.arc(x, screenY, radius * 0.6, 0, Math.PI * 2);
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth = 1.5;
+  ctx.setLineDash([2, 4]);
+  ctx.stroke();
+  ctx.setLineDash([]);
+};
+
+/**
+ * Draws a mesmerizing Black Hole portal.
+ */
+const drawBlackHole = (ctx, obstacle, screenY) => {
+  const { x, angle } = obstacle;
+  const radius = OBSTACLES.BLACK_HOLE_RADIUS;
+  const pullRadius = OBSTACLES.BLACK_HOLE_PULL_RADIUS;
+
+  ctx.save();
+  ctx.translate(x, screenY);
+
+  // Outer accretion disk (Gravity well indicator)
+  ctx.beginPath();
+  ctx.arc(0, 0, pullRadius, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(168, 85, 247, 0.05)';
+  ctx.fill();
+
+  // Swirling inner glow
+  ctx.rotate(angle);
+  const grad = ctx.createRadialGradient(0, 0, radius * 0.5, 0, 0, radius * 2);
+  grad.addColorStop(0, COLORS.BLACK_HOLE_ACCRETION);
+  grad.addColorStop(0.3, COLORS.BLACK_HOLE_GLOW);
+  grad.addColorStop(1, 'transparent');
+
+  ctx.beginPath();
+  ctx.arc(0, 0, radius * 2, 0, Math.PI * 2);
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  // The singularity
+  ctx.shadowColor = COLORS.BLACK_HOLE_GLOW;
+  ctx.shadowBlur = 15;
+  ctx.beginPath();
+  ctx.arc(0, 0, radius, 0, Math.PI * 2);
+  ctx.fillStyle = COLORS.BLACK_HOLE_CORE;
+  ctx.fill();
+
+  ctx.restore();
+};
+
+/**
+ * Draws a blazing White Hole exit portal.
+ */
+const drawWhiteHole = (ctx, obstacle, screenY) => {
+  const { x, angle } = obstacle;
+  const radius = OBSTACLES.WHITE_HOLE_RADIUS;
+
+  ctx.save();
+  ctx.translate(x, screenY);
+  ctx.rotate(angle);
+
+  // Blinding outer glow
+  ctx.shadowColor = COLORS.WHITE_HOLE_GLOW;
+  ctx.shadowBlur = 20;
+
+  // Swirling ejection flares
+  ctx.beginPath();
+  for (let i = 0; i < 6; i++) {
+    ctx.moveTo(0, 0);
+    ctx.lineTo(Math.cos(i * Math.PI / 3) * radius * 2.5, Math.sin(i * Math.PI / 3) * radius * 2.5);
+  }
+  ctx.strokeStyle = COLORS.WHITE_HOLE_GLOW;
+  ctx.lineWidth = 4;
+  ctx.stroke();
+
+  // Core
+  ctx.beginPath();
+  ctx.arc(0, 0, radius, 0, Math.PI * 2);
+  ctx.fillStyle = COLORS.WHITE_HOLE_CORE;
+  ctx.fill();
+
+  // Inner ring
+  ctx.beginPath();
+  ctx.arc(0, 0, radius * 0.7, 0, Math.PI * 2);
+  ctx.strokeStyle = COLORS.WHITE_HOLE_RING;
+  ctx.lineWidth = 3;
+  ctx.stroke();
+
+  ctx.restore();
+};
+
 /**
  * Draws an obstacle relative to the camera.
  */
@@ -214,6 +358,8 @@ export const drawObstacle = (ctx, obstacle, cameraY, viewportHeight) => {
 
   if (obstacle.type === 'peg' || obstacle.type === 'spinner_peg') {
     drawPeg(ctx, obstacle, screenY);
+  } else if (obstacle.type === 'pinball_bumper') {
+    drawPinballBumper(ctx, obstacle, screenY);
   } else if (obstacle.type === 'funnel_left' || obstacle.type === 'funnel_right') {
     drawFunnel(ctx, obstacle, screenY, cameraY);
   } else if (obstacle.type === 'zigzag_left' || obstacle.type === 'zigzag_right') {
@@ -222,6 +368,10 @@ export const drawObstacle = (ctx, obstacle, cameraY, viewportHeight) => {
     drawSpinnerRing(ctx, obstacle, screenY);
   } else if (obstacle.type === 'slider' || obstacle.type === 'trapdoor_block') {
     drawSlider(ctx, obstacle, screenY);
+  } else if (obstacle.type === 'black_hole') {
+    drawBlackHole(ctx, obstacle, screenY);
+  } else if (obstacle.type === 'white_hole') {
+    drawWhiteHole(ctx, obstacle, screenY);
   }
 
   ctx.restore();
@@ -367,32 +517,107 @@ export const drawLeaderboard = (ctx, topBalls, courseWidth) => {
 export const drawProgressBar = (ctx, progressPct, leaderBall, courseWidth, viewportHeight) => {
   if (!leaderBall) return;
 
-  const barWidth = 4;
-  const startX = 0; // Absolute left edge over the wall
-  const startY = 0;
-  const height = viewportHeight;
+  const barWidth = 6;
+  const startX = 16;
+  const startY = 40;
+  const height = viewportHeight - 80;
 
   ctx.save();
 
   // Track background 
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
-  ctx.fillRect(startX, startY, barWidth, height);
+  ctx.fillStyle = 'rgba(15, 23, 42, 0.4)';
+  ctx.beginPath();
+  ctx.roundRect(startX, startY, barWidth, height, barWidth / 2);
+  ctx.fill();
 
-  // Progress fill (muted)
+  // Progress fill (leader's color)
   const fillHeight = Math.max(0, height * progressPct);
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
-  ctx.fillRect(startX, startY, barWidth, fillHeight);
+  ctx.fillStyle = leaderBall.color;
+  ctx.shadowColor = leaderBall.color;
+  ctx.shadowBlur = 4;
+  ctx.beginPath();
+  ctx.roundRect(startX, startY, barWidth, fillHeight, barWidth / 2);
+  ctx.fill();
+  ctx.shadowBlur = 0;
 
-  // Leader marker (smaller, placed just outside the wall)
+  // Leader marker (Triangle pointing left towards the bar instead of a dot)
   const markerY = startY + fillHeight;
   ctx.beginPath();
-  ctx.arc(startX + barWidth + 2, markerY, 4, 0, Math.PI * 2);
-  ctx.fillStyle = leaderBall.color;
+  ctx.moveTo(startX + barWidth + 4, markerY);
+  ctx.lineTo(startX + barWidth + 10, markerY - 5);
+  ctx.lineTo(startX + barWidth + 10, markerY + 5);
   ctx.fill();
 
   // Finish line marker at bottom
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
-  ctx.fillRect(startX, startY + height - 2, barWidth + 4, 2);
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+  ctx.fillRect(startX - 2, startY + height - 2, barWidth + 4, 3);
+
+  // FINISH Label
+  ctx.font = 'bold 9px Inter, sans-serif';
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('FINISH', startX + barWidth + 6, startY + height);
+
+  // START Label
+  ctx.fillText('START', startX + barWidth + 6, startY);
+
+  ctx.restore();
+};
+
+/**
+ * Draws the spinning mixer drum circle.
+ * @param {CanvasRenderingContext2D} ctx
+ * @param {number} courseWidth
+ * @param {number} cameraY
+ * @param {number} viewportHeight
+ * @param {number} timestamp - Frame timestamp for rotation animation.
+ * @param {number} progress - 0 to 1 progress of the mixer phase.
+ */
+export const drawMixer = (ctx, courseWidth, cameraY, viewportHeight, timestamp, progress) => {
+  const cx = courseWidth / 2;
+  const cy = MIXER.CENTER_Y - cameraY;
+  const radius = MIXER.RADIUS;
+
+  // Fade out as progress nears 1
+  const fadeAlpha = progress < 0.8 ? 1.0 : 1.0 - (progress - 0.8) / 0.2;
+
+  ctx.save();
+  ctx.globalAlpha = fadeAlpha;
+
+  // Outer glow
+  ctx.shadowColor = 'rgba(99, 102, 241, 0.4)';
+  ctx.shadowBlur = 15;
+
+  // Rotating dashed circle border
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(timestamp * 0.002);
+
+  ctx.beginPath();
+  ctx.arc(0, 0, radius, 0, Math.PI * 2);
+  ctx.strokeStyle = 'rgba(129, 140, 248, 0.6)';
+  ctx.lineWidth = 3;
+  ctx.setLineDash([8, 8]);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  ctx.restore();
+  ctx.shadowBlur = 0;
+
+  // Inner circle fill (subtle)
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(30, 41, 59, 0.3)';
+  ctx.fill();
+
+  // "MIXING..." label - pulsating
+  const pulse = 0.7 + Math.sin(timestamp * 0.005) * 0.3;
+  ctx.fillStyle = `rgba(165, 180, 252, ${pulse * fadeAlpha})`;
+  ctx.font = 'bold 12px Inter, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('MIXING...', cx, cy + radius + 18);
 
   ctx.restore();
 };

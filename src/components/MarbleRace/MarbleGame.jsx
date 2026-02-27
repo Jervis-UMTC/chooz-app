@@ -45,6 +45,15 @@ const MarbleGame = ({ names, setNames, onBack }) => {
     setIsMuted(newMuted);
   }, [isMuted]);
 
+  const handleBackClick = useCallback(() => {
+    if (isRacing || results) {
+      setIsRacing(false);
+      setResults(null);
+    } else {
+      onBack();
+    }
+  }, [isRacing, results, onBack]);
+
   const handleStartRace = useCallback(() => {
     if (names.length < 2) return;
     initAudio();
@@ -82,7 +91,7 @@ const MarbleGame = ({ names, setNames, onBack }) => {
   return (
     <PageContainer>
       <FloatingNav>
-        <NavButton onClick={onBack}>
+        <NavButton onClick={handleBackClick}>
           <ArrowLeftIcon size={16} /> Back
         </NavButton>
       </FloatingNav>
