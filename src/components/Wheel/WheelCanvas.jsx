@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState, memo } from 'react';
+import { useRef, useEffect, useState, useMemo, memo } from 'react';
 import { GAME_COLORS } from '../../utils/colors';
 import { playTick, playWin, initAudio } from '../../utils/sounds';
 import { DRAWING_CONSTANTS } from './WheelConstants';
@@ -42,7 +42,10 @@ const applyEasing = (progress) => {
 };
 
 const WheelCanvas = ({ names, mustSpin, prizeNumber, onStopSpinning, onSpin, spinDuration = 5 }) => {
-  const effectiveNames = names.length > 0 ? names : [PLACEHOLDER_TEXT];
+  const effectiveNames = useMemo(
+    () => (names.length > 0 ? names : [PLACEHOLDER_TEXT]),
+    [names]
+  );
   const isDemo = names.length === 0;
 
   const canvasRef = useRef(null);
@@ -168,7 +171,7 @@ const WheelCanvas = ({ names, mustSpin, prizeNumber, onStopSpinning, onSpin, spi
 
     const drawFrame = (timestamp) => {
       if (!offscreenCanvasRef.current) return;
-      const { centerX, centerY, effectiveRadius, hubRadius, devicePixelRatio, topReservedPixels } = geometryRef.current;
+      const { centerX, centerY, effectiveRadius, devicePixelRatio, topReservedPixels } = geometryRef.current;
 
       canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -327,7 +330,7 @@ const WheelCanvas = ({ names, mustSpin, prizeNumber, onStopSpinning, onSpin, spi
 
       requestAnimationFrame(step);
     }
-  }, [mustSpin, prizeNumber, names.length, effectiveNames.length, onStopSpinning, spinDuration]);
+  }, [mustSpin, prizeNumber, names.length, effectiveNames.length, onStopSpinning, spinDuration, isDemo]);
 
   return (
     <div ref={containerRef} style={{ width: '100%', height: '100%', minHeight: '300px' }}>
