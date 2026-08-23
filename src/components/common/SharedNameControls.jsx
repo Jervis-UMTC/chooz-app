@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion as MotionDiv } from 'framer-motion';
 import { GAME_COLORS } from '../../utils/colors';
 import { playUiClick } from '../../utils/sounds';
 import { ShuffleIcon, CloseIcon, PlusIcon, ClearAllIcon, ImportIcon, SaveIcon, HistoryIcon, EditIcon } from './Icons';
@@ -221,7 +221,7 @@ const SharedNameControls = ({ names, setNames, isLocked, maxNames = Infinity, sh
 
       <AnimatePresence>
         {isImportVisible && (
-          <motion.div
+          <MotionDiv
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
@@ -243,7 +243,7 @@ const SharedNameControls = ({ names, setNames, isLocked, maxNames = Infinity, sh
                 </IconButton>
               </ButtonRow>
             </div>
-          </motion.div>
+          </MotionDiv>
         )}
       </AnimatePresence>
 
