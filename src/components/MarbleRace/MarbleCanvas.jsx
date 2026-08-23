@@ -87,7 +87,6 @@ const MarbleCanvas = ({ names, racing, onRaceFinish, mode }) => {
 
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
-    const dpr = window.devicePixelRatio || 1;
     const courseWidth = COURSE.WIDTH;
     const viewportHeight = CAMERA.VIEWPORT_HEIGHT;
     const scaleX = canvas.width / courseWidth;
@@ -145,7 +144,7 @@ const MarbleCanvas = ({ names, racing, onRaceFinish, mode }) => {
           const elapsed = timestamp - mixer.startTime;
           const progress = Math.min(1, elapsed / MIXER.DURATION);
 
-          updateMixer(balls, courseWidth, timestamp);
+          updateMixer(balls, courseWidth);
 
           // Draw mixer circle
           drawMixer(ctx, courseWidth, cameraY, viewportHeight, timestamp, progress);

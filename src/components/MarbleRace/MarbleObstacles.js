@@ -170,7 +170,7 @@ const addSliderRow = (obstacles, y, usableWidth, courseWidth, minGap) => {
 // ── Segment Generators ───────────────────────
 
 /** 0a. Crossover Ramps: Diagonal deflectors that force balls across the track */
-const addCrossoverSegment = (obstacles, startY, usableWidth, margin, courseWidth, minGap, radius) => {
+const addCrossoverSegment = (obstacles, startY, usableWidth, margin, courseWidth, minGap) => {
   let currentY = startY;
   const rampHeight = 80;
   const direction = Math.random() < 0.5 ? 1 : -1; // 1 = left-to-right, -1 = right-to-left
@@ -211,7 +211,7 @@ const addCrossoverSegment = (obstacles, startY, usableWidth, margin, courseWidth
 };
 
 /** 0b. Pinball Lane: Diagonal line of pinball bumpers forcing cross-track movement */
-const addPinballLaneSegment = (obstacles, startY, usableWidth, margin, courseWidth, minGap, radius) => {
+const addPinballLaneSegment = (obstacles, startY, usableWidth, margin, courseWidth, minGap) => {
   let currentY = startY;
   const bumperRadius = OBSTACLES.PINBALL_BUMPER_RADIUS;
   const count = OBSTACLES.PINBALL_LANE_BUMPER_COUNT;
@@ -261,7 +261,7 @@ const addPlinkoSegment = (obstacles, startY, usableWidth, margin, courseWidth, m
 };
 
 /** 2. Chaos Zone Segment: Spinners, Bouncy Pegs, and the new Pinball Bumpers */
-const addChaosSegment = (obstacles, startY, usableWidth, margin, courseWidth, minGap, radius) => {
+const addChaosSegment = (obstacles, startY, usableWidth, margin, courseWidth, minGap) => {
   let currentY = startY;
 
   // A Spinner Ring

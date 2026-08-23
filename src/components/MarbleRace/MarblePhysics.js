@@ -50,10 +50,9 @@ const clamp = (val, min, max) => Math.max(min, Math.min(max, val));
  * Confines balls inside a circle and applies spin force.
  * @param {Array<object>} balls - Ball objects.
  * @param {number} courseWidth - Course width.
- * @param {number} timestamp - Frame timestamp.
  * @returns {void}
  */
-export const updateMixer = (balls, courseWidth, timestamp) => {
+export const updateMixer = (balls, courseWidth) => {
   const cx = courseWidth / 2;
   const cy = MIXER.CENTER_Y;
   const containerR = MIXER.RADIUS;
@@ -619,9 +618,6 @@ export const updateBalls = (balls, obstacles, courseWidth, finishY, timestamp, p
 
   // Calculate the spread of the pack to determine who gets rubber-banding
   const packSpread = lowestY - highestY;
-  // Consider someone "far behind" if they are more than 30% of the pack spread behind the leader
-  // and spread is significant enough 
-  const catchupThreshold = lowestY - (packSpread * 0.3);
 
   for (const ball of balls) {
     if (ball.finished) continue;

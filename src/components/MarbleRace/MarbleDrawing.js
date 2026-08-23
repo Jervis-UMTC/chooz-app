@@ -454,7 +454,6 @@ const lightenColor = (hex, amount) => {
 export const drawLeaderboard = (ctx, topBalls, courseWidth) => {
   if (topBalls.length === 0) return;
 
-  const padding = 10;
   const width = 130;
   const startX = courseWidth - width - 15;
   const startY = 15;
