@@ -37,6 +37,7 @@ const MarbleGame = ({ names, setNames, onBack }) => {
   const [isRacing, setIsRacing] = useState(false);
   const [mode, setMode] = useState('first');
   const [results, setResults] = useState(null);
+  const [raceCount, setRaceCount] = useState(0);
   const [isMuted, setIsMuted] = useState(getMuted());
 
   const toggleMute = useCallback(() => {
@@ -64,6 +65,7 @@ const MarbleGame = ({ names, setNames, onBack }) => {
   const handleRaceFinish = useCallback((finishers) => {
     setIsRacing(false);
     setResults(finishers);
+    setRaceCount(count => count + 1);
   }, []);
 
   const handleRaceAgain = useCallback(() => {
@@ -102,7 +104,7 @@ const MarbleGame = ({ names, setNames, onBack }) => {
         </MuteButton>
       </ControlButtons>
 
-      {results && winner && <Celebration key={winner.name + Date.now()} particleCount={20} />}
+      {results && winner && <Celebration key={`${winner.name}-${raceCount}`} particleCount={20} />}
 
       <GameContainer>
         <CanvasWrapper>

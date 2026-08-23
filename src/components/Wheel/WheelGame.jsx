@@ -35,6 +35,7 @@ const WheelGame = ({
   const [mustSpin, setMustSpin] = useState(false);
   const [prizeNumber, setPrizeNumber] = useState(0);
   const [winner, setWinner] = useState(null);
+  const [spinCount, setSpinCount] = useState(0);
   const [spinDuration, setSpinDuration] = useState(DEFAULT_SPIN_DURATION);
   const [history, setHistory] = useLocalStorage('chooz_history', []);
   const [isMutedState, setIsMutedState] = useState(getMuted());
@@ -80,6 +81,7 @@ const WheelGame = ({
     }
     const newWinner = names[prizeNumber];
     setWinner(newWinner);
+    setSpinCount(count => count + 1);
     setHistory(prev => [newWinner, ...prev].slice(0, MAX_HISTORY_SIZE));
   };
 
@@ -122,7 +124,7 @@ const WheelGame = ({
         </MuteButton>
       </ControlButtons>
 
-      {winner && <Celebration key={winner + Date.now()} particleCount={20} />}
+      {winner && <Celebration key={`${winner}-${spinCount}`} particleCount={20} />}
 
       <GameContainer>
         <WheelWrapper>
